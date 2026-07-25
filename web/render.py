@@ -18,6 +18,8 @@ def _suit_span(letter: str) -> str:
 def call_html(token: str) -> Markup:
     if token in ("", "-"):
         return Markup("&nbsp;")
+    if token.startswith("(") and token.endswith(")"):   # defender call in from_opener
+        return Markup(f"({call_html(token[1:-1])})")
     if token == "P":
         return Markup('<span class="pass">Pass</span>')
     if token == "X":

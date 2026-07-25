@@ -48,6 +48,28 @@ def test_uc5_player_view(client):
     assert "board instances match" in r.text
 
 
+def test_uc2_sequence_explorer(client):
+    # SPEC 7.3: after their 1C opening, K-K's responses (uncontested tree)
+    r = client.get("/explore?tournament=riga&player=KLUKOWSKI&partner=KALITA"
+                   "&pair_side=opening&seq=1C")
+    assert r.status_code == 200
+    assert "<b>24</b> auctions match" in r.text          # uncontested 1C openings
+    assert "next call" in r.text                   # faceting table rendered
+    # drill one level: opener's rebid after 1C 1H exists
+    r2 = client.get("/explore?tournament=riga&seq=1C+1H")
+    assert r2.status_code == 200
+    assert "<b>330</b> auctions match" in r2.text
+
+
+def test_uc6_situational_hcp(client):
+    # SPEC 2 uc6: auctions starting 1NT (2H), next hand 8-11 HCP -> what did they do
+    r = client.get("/explore?tournament=riga&seq=1NT+(2H)"
+                   "&next_hcp_min=8&next_hcp_max=11")
+    assert r.status_code == 200
+    assert "<b>51</b> auctions match" in r.text
+    assert "Dbl" in r.text                          # a common action shows up
+
+
 def test_csv_export(client):
     r = client.get("/export.csv?tournament=riga&player=KLUKOWSKI&partner=KALITA"
                    "&pair_side=opening&opening_call=1C")

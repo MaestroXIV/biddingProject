@@ -60,3 +60,20 @@ table.auc th { background: #f2f5f8; font-size: 11px; color: #333; }
 table.auc td.open { background: #fff3cd; font-weight: 700; }
 .src { font-size: 12px; }
 @media (max-width: 720px) { .grid { grid-template-columns: repeat(2,1fr); } .cards, .travellers { grid-template-columns: 1fr; } }
+
+/* nav + explorer */
+.nav { display: inline-flex; gap: 12px; margin-left: 16px; }
+.nav a { color: #cfe0f2; font-size: 13px; }
+.crumb { margin: 12px 2px; font-size: 14px; }
+.crumb a { padding: 1px 4px; }
+.branches { overflow-x: auto; }
+table.facet { border-collapse: collapse; width: 100%; background: #fff;
+              border: 1px solid #dfe3e8; border-radius: 8px; }
+table.facet th, table.facet td { border-bottom: 1px solid #eef1f4; padding: 7px 10px;
+              text-align: left; vertical-align: top; font-size: 13px; }
+table.facet th { background: #f2f5f8; font-size: 11px; text-transform: uppercase; color: #555; }
+.facet .bcall a { font-size: 16px; font-weight: 700; }
+.facet .bcount { font-weight: 700; }
+.facet .bpat { color: #555; font-variant-numeric: tabular-nums; }
+.facet .bsamp { color: #666; font-size: 12px; }
+code { background: #eef1f4; padding: 0 4px; border-radius: 3px; }

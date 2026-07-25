@@ -8,6 +8,7 @@ from __future__ import annotations
 import csv
 import io
 from pathlib import Path
+from urllib.parse import urlencode
 
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, StreamingResponse
@@ -27,13 +28,28 @@ templates.env.globals["auction_grid"] = rnd.auction_grid
 templates.env.globals["auction_oneliner"] = rnd.auction_oneliner
 templates.env.globals["SEATS_WNES"] = rnd.SEATS_WNES
 
+_CARRY = ("tournament", "player", "player_role", "partner", "pair_side",
+          "dealer", "vul", "round_from", "round_to")
+
+
+def _url(path: str, f: dict, seq: str | None = None, **extra) -> str:
+    d = {k: f[k] for k in _CARRY if f.get(k)}
+    if seq:
+        d["seq"] = seq
+    d.update({k: v for k, v in extra.items() if v})
+    return f"{path}?{urlencode(d)}" if d else path
+
+
+templates.env.globals["explore_url"] = lambda f, seq=None, **e: _url("/explore", f, seq, **e)
+templates.env.globals["search_url"] = lambda f, seq=None, **e: _url("/", f, seq, **e)
+
 PAGE = 40
 
 
 def _filters(params) -> dict:
     keys = ("tournament", "player", "player_role", "partner", "pair_side",
             "opening_call", "position", "dealer", "vul", "competitive",
-            "contract", "declarer", "round_from", "round_to")
+            "contract", "declarer", "round_from", "round_to", "seq")
     return {k: (params.get(k) or "").strip() for k in keys}
 
 
@@ -55,6 +71,25 @@ def home(request: Request):
     }
     conn.close()
     return templates.TemplateResponse(request, "index.html", ctx)
+
+
+@app.get("/explore", response_class=HTMLResponse)
+def explore(request: Request):
+    params = request.query_params
+    f = _filters(params)
+    seq = f.get("seq", "")
+    nh_min = (params.get("next_hcp_min") or "").strip()
+    nh_max = (params.get("next_hcp_max") or "").strip()
+    conn = q.connect()
+    result = q.explore(conn, f, seq, nh_min, nh_max)
+    ctx = {
+        "request": request, "f": f, "result": result,
+        "next_hcp_min": nh_min, "next_hcp_max": nh_max,
+        "tournaments": q.tournaments(conn), "opening_calls": q.opening_calls(conn),
+        "qs": params,
+    }
+    conn.close()
+    return templates.TemplateResponse(request, "explore.html", ctx)
 
 
 @app.get("/deal/{deal_id}", response_class=HTMLResponse)

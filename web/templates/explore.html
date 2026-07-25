@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}Sequence Explorer — BoardBase{% endblock %}
+{% block body %}
+<h2>Sequence Explorer</h2>
+
+<form class="filters" method="get" action="/explore">
+  <div class="grid">
+    <label>Tournament
+      <select name="tournament">
+        <option value="">any</option>
+        {% for t in tournaments %}
+        <option value="{{ t['slug'] }}" {{ 'selected' if f.tournament==t['slug'] }}>{{ t['name'] }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Player <input name="player" value="{{ f.player }}" placeholder="KLUKOWSKI"></label>
+    <label>Partner (pair) <input name="partner" value="{{ f.partner }}" placeholder="KALITA"></label>
+    <label>Pair side
+      <select name="pair_side">
+        <option value="either" {{ 'selected' if f.pair_side=='either' }}>either side</option>
+        <option value="opening" {{ 'selected' if f.pair_side=='opening' }}>opening side</option>
+      </select>
+    </label>
+    <label>Sequence prefix
+      <input name="seq" value="{{ f.seq }}" placeholder="1C 1H   or   1NT (2H)">
+    </label>
+    <label>Next player HCP ≥ <input name="next_hcp_min" value="{{ next_hcp_min }}" size="3"></label>
+    <label>Next player HCP ≤ <input name="next_hcp_max" value="{{ next_hcp_max }}" size="3"></label>
+  </div>
+  <div class="actions"><button type="submit">Explore</button>
+    <a class="btn" href="/explore">Reset</a></div>
+  <p class="hint">No parentheses = uncontested start (opener side only, e.g. <code>1C 1H</code>).
+     Parentheses = full auction with defenders (e.g. <code>1NT (2H)</code>).</p>
+</form>
+
+{# breadcrumb #}
+<div class="crumb">
+  <a href="{{ explore_url(f, seq='') }}">start</a>
+  {% for tok in result.seq_tokens %}
+    &nbsp;›&nbsp;
+    <a href="{{ explore_url(f, seq=result.seq_tokens[:loop.index]|join(' ')) }}">{{ tok }}</a>
+  {% endfor %}
+</div>
+
+<div class="resultbar">
+  <b>{{ result.matched }}</b> auction{{ '' if result.matched==1 else 's' }} match this prefix
+  {% if result.ended %}· {{ result.ended }} ended here{% endif %}
+  · <a href="{{ search_url(f, seq=result.seq) }}">see all {{ result.matched }} boards →</a>
+</div>
+
+{% if result.branches %}
+<div class="branches">
+  <table class="facet">
+    <thead><tr>
+      <th>next call</th><th>count</th><th>opener/actor HCP</th>
+      <th>common shapes</th><th>sample boards</th>
+    </tr></thead>
+    <tbody>
+    {% for b in result.branches %}
+      <tr>
+        <td class="bcall">
+          <a href="{{ explore_url(f, seq=(result.seq ~ ' ' ~ b.call)|trim) }}">{{ b.call|call }}</a>
+        </td>
+        <td class="bcount">{{ b.count }}</td>
+        <td>{{ b.hcp_min }}–{{ b.hcp_med }}–{{ b.hcp_max }}</td>
+        <td class="bpat">{{ b.patterns|join(' · ') }}</td>
+        <td class="bsamp">
+          {% for s in b.samples %}
+          <a href="/deal/{{ s.deal_id }}" title="{{ s.seat }} {{ s.hand }} ({{ s.hcp }} HCP)">{{ s.tslug }} R{{ s.round_no }}·{{ s.board_no }}</a>{{ '' if loop.last else ', ' }}
+          {% endfor %}
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<p class="hint">No continuations found. Try a shorter prefix, or check the notation.</p>
+{% endif %}
+{% endblock %}

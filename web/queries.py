@@ -2,7 +2,24 @@
 from __future__ import annotations
 
 import sqlite3
+import statistics
 from pathlib import Path
+
+SEATS = ("N", "E", "S", "W")
+_HCP = {"A": 4, "K": 3, "Q": 2, "J": 1}
+
+
+def _hcp(hand: str) -> int:
+    return sum(_HCP.get(c, 0) for c in hand.replace(".", ""))
+
+
+def _pattern(hand: str) -> str:
+    lens = sorted((0 if s == "-" else len(s) for s in hand.split(".")), reverse=True)
+    return "".join(map(str, lens))
+
+
+def _rotate(dealer: str, steps: int) -> str:
+    return SEATS[(SEATS.index(dealer) + steps) % 4]
 
 DB_PATH = Path(__file__).resolve().parent.parent / "data" / "boardbase.db"
 
@@ -74,6 +91,10 @@ def build_filters(conn, f: dict):
         add("a.opener_rel_pos = ?", int(f["position"]))
     if f.get("competitive") in ("0", "1"):
         add("a.competitive = ?", int(f["competitive"]))
+    if f.get("seq", "").strip():
+        seq = " ".join(f["seq"].split())
+        col = "a.from_opener" if "(" in seq else "a.uncontested_key"
+        add(f"{col} IS NOT NULL AND ({col} = ? OR {col} LIKE ?)", seq, seq + " %")
     if f.get("round_from"):
         add("r.number >= ?", int(f["round_from"]))
     if f.get("round_to"):
@@ -187,3 +208,87 @@ def players_at(conn, match_id: int, room: str) -> dict:
         "SELECT s.seat, p.canonical_name AS name FROM seating s "
         "JOIN player p ON p.id=s.player_id WHERE s.match_id=? AND s.room=?",
         (match_id, room))}
+
+
+# --- sequence explorer (SPEC 7.3) -------------------------------------------
+
+def explore(conn, f: dict, seq: str, next_hcp_min: str = "", next_hcp_max: str = ""):
+    """Next-call faceting after a sequence prefix (SPEC 6, 7.3).
+
+    A prefix without parentheses matches uncontested_key (opening side only);
+    with parentheses it matches from_opener (defenders in parens). For each
+    distinct *next* call we return its count, a hand summary of the player who
+    made it (HCP min/median/max, common shapes), and sample boards.
+    """
+    seq = " ".join(seq.split())
+    seq_tokens = seq.split() if seq else []
+    depth = len(seq_tokens)
+    contested = "(" in seq
+    key_col = "a.from_opener" if contested else "a.uncontested_key"
+    stride = 1 if contested else 2   # from_opener: every call; uncontested: opener side only
+
+    where, params = build_filters(conn, {**f, "seq": ""})  # apply all but seq here
+    clause = f"{key_col} IS NOT NULL"
+    if seq:
+        clause += f" AND ({key_col} = ? OR {key_col} LIKE ?)"
+    prefix_params = ([seq, seq + " %"] if seq else [])
+    full_where = (where + (" AND " if where else " WHERE ") + clause)
+
+    sql = f"""
+    SELECT {key_col} AS key, a.opener_rel_pos AS orp, d.dealer AS dealer,
+           d.hand_n, d.hand_e, d.hand_s, d.hand_w,
+           bi.id AS bi_id, d.id AS deal_id, d.board_no, r.number AS round_no,
+           t.slug AS tslug
+    {BASE}{full_where}"""
+    rows = conn.execute(sql, params + prefix_params).fetchall()
+
+    hmin = int(next_hcp_min) if str(next_hcp_min).strip() else None
+    hmax = int(next_hcp_max) if str(next_hcp_max).strip() else None
+
+    branches: dict[str, dict] = {}
+    matched = 0
+    ended = 0
+    for r in rows:
+        toks = r["key"].split()
+        if toks[:depth] != seq_tokens:
+            continue
+        matched += 1
+        if len(toks) <= depth:
+            ended += 1
+            continue
+        nxt = toks[depth]
+        # seat that made the next call
+        abs_idx = (r["orp"] - 1) + stride * depth
+        seat = _rotate(r["dealer"], abs_idx)
+        hand = {"N": r["hand_n"], "E": r["hand_e"],
+                "S": r["hand_s"], "W": r["hand_w"]}[seat]
+        h = _hcp(hand)
+        if (hmin is not None and h < hmin) or (hmax is not None and h > hmax):
+            continue
+        b = branches.setdefault(nxt, {"call": nxt, "count": 0, "hcps": [],
+                                      "patterns": {}, "samples": []})
+        b["count"] += 1
+        b["hcps"].append(h)
+        b["patterns"][_pattern(hand)] = b["patterns"].get(_pattern(hand), 0) + 1
+        if len(b["samples"]) < 6:
+            b["samples"].append({"deal_id": r["deal_id"], "tslug": r["tslug"],
+                                 "round_no": r["round_no"], "board_no": r["board_no"],
+                                 "seat": seat, "hand": hand, "hcp": h})
+
+    out = []
+    for b in branches.values():
+        hcps = b["hcps"]
+        pats = sorted(b["patterns"].items(), key=lambda kv: -kv[1])[:3]
+        out.append({
+            "call": b["call"], "count": b["count"],
+            "hcp_min": min(hcps), "hcp_med": round(statistics.median(hcps)),
+            "hcp_max": max(hcps),
+            "patterns": [f"{p}×{n}" for p, n in pats],
+            "samples": b["samples"],
+        })
+    out.sort(key=lambda x: -x["count"])
+    filtered = (hmin is not None or hmax is not None)
+    facet_total = sum(b["count"] for b in out) if filtered else (matched - ended)
+    return {"seq": seq, "seq_tokens": seq_tokens, "contested": contested,
+            "matched": matched, "ended": ended, "facet_total": facet_total,
+            "branches": out}
