@@ -7,3 +7,4 @@ data/boardbase.db
 .claude/
 .DS_Store
 data/browserprofile/
+data/chromeprofile/

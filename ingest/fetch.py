@@ -3,11 +3,14 @@
 Two transports, chosen per host:
 
 - **WBF** (`db.worldbridge.org`, plain HTTP) -> httpx. Fast, no JS needed.
-- **EBL** (`db.eurobridge.org`) -> a real Chromium via Playwright. EBL sits
-  behind a Cloudflare "Just a moment..." JavaScript challenge that no plain
-  HTTP client can pass; a real browser executes the challenge JS and gets the
-  page. We do NOT solve the challenge ourselves -- the browser does, exactly as
-  it would for a human (SPEC 4.6: never circumvent beyond honest headers).
+- **EBL** (`db.eurobridge.org`) -> the user's real Google Chrome, driven over
+  the DevTools protocol. EBL sits behind a Cloudflare "Verify you are human"
+  Turnstile challenge. No HTTP client can pass it, and a Playwright-launched
+  browser is fingerprinted as automation and never clears the checkbox either.
+  Real Chrome is not flagged, so a human ticks the box ONCE and we reuse that
+  genuine session (a dedicated Chrome profile keeps the clearance cookie). We do
+  NOT solve or spoof the challenge ourselves (SPEC 4.6: never circumvent beyond
+  honest headers) -- a person solves it in their own browser.
 
 Fetching stays separate from parsing: every page is written to
 data/rawcache/{site}/{tournid}/{name}.html before anyone parses it, and
@@ -15,8 +18,9 @@ re-parsing works entirely from cache with zero network.
 """
 from __future__ import annotations
 
-import os
+import subprocess
 import time
+import urllib.request
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -25,15 +29,18 @@ import httpx
 USER_AGENT = "BoardBase/0.1 (personal research; gregor.rus14@gmail.com)"
 MIN_INTERVAL = 1.0  # seconds between requests (SPEC 4.6: max ~1 req/sec)
 CHALLENGE_MARKERS = ("just a moment", "enable javascript", "checking your browser")
-# Cloudflare shows a human-solvable "Verify you are human" checkbox. Headed, we
-# wait for a person to click it (once per session -- the persistent profile then
-# reuses the clearance cookie). Headless can't be solved, so we fail fast.
+# Cloudflare shows a human-solvable "Verify you are human" checkbox. We wait for
+# a person to click it once (the dedicated Chrome profile then reuses the
+# clearance cookie for the rest of the run and future runs).
 CHALLENGE_TIMEOUT_INTERACTIVE = 300.0
-CHALLENGE_TIMEOUT_HEADLESS = 30.0
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 CACHE_ROOT = REPO_ROOT / "data" / "rawcache"
-BROWSER_PROFILE = REPO_ROOT / "data" / "browserprofile"
+# Dedicated Chrome profile: keeps EBL's Cloudflare clearance cookie between runs
+# and stays out of the way of the user's day-to-day Chrome.
+CHROME_PROFILE = REPO_ROOT / "data" / "chromeprofile"
+CHROME_DEBUG_PORT = 9222
+CHROME_APP = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 
 
 def needs_browser(url: str) -> bool:
@@ -50,15 +57,14 @@ class Fetcher:
             f.get(url, cache_path)
     """
 
-    def __init__(self, headless: bool | None = None) -> None:
-        if headless is None:
-            headless = os.environ.get("BOARDBASE_HEADLESS", "0") == "1"
-        self.headless = headless
+    def __init__(self, chrome_app: str = CHROME_APP) -> None:
+        self.chrome_app = chrome_app
         self._last = 0.0
         self._prompted = False
         self._httpx: httpx.Client | None = None
         self._pw = None          # playwright instance
-        self._ctx = None         # persistent browser context
+        self._ctx = None         # connected browser context (real Chrome)
+        self._chrome: subprocess.Popen | None = None
 
     # -- lifecycle ----------------------------------------------------------
     def __enter__(self) -> "Fetcher":
@@ -71,12 +77,19 @@ class Fetcher:
         if self._httpx is not None:
             self._httpx.close()
             self._httpx = None
-        if self._ctx is not None:
-            self._ctx.close()
-            self._ctx = None
         if self._pw is not None:
+            # Don't close the context: that would kill the real Chrome we
+            # connected to. Just detach Playwright, then stop Chrome ourselves.
             self._pw.stop()
             self._pw = None
+        self._ctx = None
+        if self._chrome is not None:
+            self._chrome.terminate()
+            try:
+                self._chrome.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                self._chrome.kill()
+            self._chrome = None
 
     def _throttle(self) -> None:
         wait = MIN_INTERVAL - (time.monotonic() - self._last)
@@ -111,15 +124,47 @@ class Fetcher:
             return self._ctx
         from playwright.sync_api import sync_playwright
 
+        if not Path(self.chrome_app).exists():
+            raise RuntimeError(
+                f"Google Chrome not found at {self.chrome_app}. Install Chrome "
+                "(brew install --cask google-chrome) or pass chrome_app=..."
+            )
+        self._launch_real_chrome()
         self._pw = sync_playwright().start()
-        # Persistent context keeps the Cloudflare clearance cookie between runs,
-        # so only the first page of a session pays the challenge cost.
-        self._ctx = self._pw.chromium.launch_persistent_context(
-            user_data_dir=str(BROWSER_PROFILE),
-            headless=self.headless,
-            locale="en-US",
+        # Attach to the real Chrome we just launched and reuse its default
+        # context, so cookies (incl. Cloudflare clearance) are the human's.
+        browser = self._pw.chromium.connect_over_cdp(
+            f"http://127.0.0.1:{CHROME_DEBUG_PORT}"
         )
+        self._ctx = browser.contexts[0] if browser.contexts else browser.new_context()
         return self._ctx
+
+    def _launch_real_chrome(self) -> None:
+        CHROME_PROFILE.mkdir(parents=True, exist_ok=True)
+        self._chrome = subprocess.Popen(
+            [
+                self.chrome_app,
+                f"--remote-debugging-port={CHROME_DEBUG_PORT}",
+                f"--user-data-dir={CHROME_PROFILE}",
+                "--no-first-run",
+                "--no-default-browser-check",
+                "about:blank",
+            ],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        # Wait for the DevTools endpoint to come up.
+        endpoint = f"http://127.0.0.1:{CHROME_DEBUG_PORT}/json/version"
+        for _ in range(50):
+            try:
+                urllib.request.urlopen(endpoint, timeout=1).read()
+                return
+            except Exception:
+                time.sleep(0.2)
+        raise RuntimeError(
+            "Real Chrome did not expose its DevTools port. Is another Chrome "
+            f"already using --user-data-dir={CHROME_PROFILE}? Close it and retry."
+        )
 
     def _fetch_browser(self, url: str) -> bytes:
         ctx = self._ensure_browser()
@@ -133,11 +178,11 @@ class Fetcher:
         return html.encode("utf-8")
 
     def _wait_for_challenge(self, page, url: str) -> None:
-        """Block until Cloudflare's interstitial clears, or raise on timeout.
+        """Block until Cloudflare's checkbox is solved by the human, or time out.
 
-        Headed, this waits for a human to tick the "Verify you are human" box in
-        the open window (then the persistent profile reuses the clearance cookie
-        for the rest of the run). Headless can't solve it, so we fail fast.
+        Waits for a person to tick the "Verify you are human" box in the real
+        Chrome window that opened. Solve it once; the dedicated Chrome profile
+        keeps the clearance cookie for the rest of the run and future runs.
         """
         def challenged() -> bool:
             title = (page.title() or "").lower()
@@ -146,18 +191,12 @@ class Fetcher:
 
         if not challenged():
             return
-        if self.headless:
-            raise RuntimeError(
-                f"Cloudflare challenge for {url} cannot be solved headless. "
-                "Run headed (do not set BOARDBASE_HEADLESS=1) from a residential "
-                "connection; do not try to solve it in code."
-            )
         if not self._prompted:
             print(
                 "\n" + "=" * 68
-                + "\n  Cloudflare check: click the 'Verify you are human' checkbox"
-                + "\n  in the Chromium window that just opened. Solve it ONCE; the"
-                + "\n  rest of the fetch continues automatically.\n"
+                + "\n  Cloudflare check: switch to the Google Chrome window that"
+                + "\n  just opened and tick 'Verify you are human'. Solve it ONCE;"
+                + "\n  the rest of the fetch then continues automatically.\n"
                 + "=" * 68 + "\n",
                 flush=True,
             )

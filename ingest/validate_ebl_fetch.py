@@ -23,8 +23,8 @@ URL = RIGA_BASE + "BoardAcross.asp?qboard=001.01..2620"
 
 def main() -> None:
     scratch = Path(tempfile.mkdtemp()) / "boardacross.html"
-    print("Opening a Chromium window to pass the Cloudflare challenge...")
-    with Fetcher(headless=False) as f:
+    print("Launching your real Chrome; solve the checkbox when it appears...")
+    with Fetcher() as f:
         data = f.get(URL, scratch)
     ba = parse.parse_boardacross(data)
     d = ba.deal
