@@ -172,7 +172,7 @@ class Fetcher:
         try:
             page.goto(url, wait_until="domcontentloaded", timeout=60_000)
             self._wait_for_challenge(page, url)
-            html = page.content()
+            html = _read_content(page)
         finally:
             page.close()
         return html.encode("utf-8")
@@ -184,12 +184,16 @@ class Fetcher:
         Chrome window that opened. Solve it once; the dedicated Chrome profile
         keeps the clearance cookie for the rest of the run and future runs.
         """
-        def challenged() -> bool:
-            title = (page.title() or "").lower()
-            body = (page.content() or "").lower()
+        def challenged() -> bool | None:
+            # None => couldn't read (page navigating): unknown, keep waiting.
+            try:
+                title = (page.title() or "").lower()
+                body = (page.content() or "").lower()
+            except Exception:
+                return None
             return any(m in title or m in body[:2000] for m in CHALLENGE_MARKERS)
 
-        if not challenged():
+        if challenged() is False:
             return
         if not self._prompted:
             print(
@@ -202,7 +206,17 @@ class Fetcher:
             )
             self._prompted = True
         deadline = time.monotonic() + CHALLENGE_TIMEOUT_INTERACTIVE
-        while challenged():
+        clear_streak = 0
+        while True:
+            state = challenged()
+            if state is False:
+                # Require two consecutive clear reads so we don't grab content
+                # in the brief gap between the checkbox and the real page load.
+                clear_streak += 1
+                if clear_streak >= 2:
+                    return
+            else:
+                clear_streak = 0
             if time.monotonic() > deadline:
                 raise RuntimeError(
                     f"Challenge for {url} not solved within "
@@ -210,6 +224,18 @@ class Fetcher:
                     "checkbox in the window."
                 )
             page.wait_for_timeout(1000)
+
+
+def _read_content(page, attempts: int = 8) -> str:
+    """Read page HTML, retrying through any in-flight navigation."""
+    last_err: Exception | None = None
+    for _ in range(attempts):
+        try:
+            return page.content()
+        except Exception as e:  # "page is navigating and changing the content"
+            last_err = e
+            page.wait_for_timeout(500)
+    raise RuntimeError(f"could not read page content: {last_err}")
 
 
 def fetch(url: str, cache_path: Path) -> bytes:
