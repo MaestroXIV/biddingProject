@@ -6,3 +6,4 @@ data/rawcache/
 data/boardbase.db
 .claude/
 .DS_Store
+data/browserprofile/

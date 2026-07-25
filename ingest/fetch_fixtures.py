@@ -7,7 +7,7 @@ from __future__ import annotations
 import shutil
 from pathlib import Path
 
-from fetch import CACHE_ROOT, fetch
+from fetch import CACHE_ROOT, Fetcher
 
 RIGA_BASE = "https://db.eurobridge.org/repository/competitions/26riga/microsite/Asp/"
 HERNING_BASE = "http://db.worldbridge.org/Repository/tourn/Herning.25/microSite/Asp/"
@@ -29,15 +29,15 @@ JOBS = [
 
 
 def main() -> None:
-    for site, tournid, base, suffix, subdir, name in JOBS:
-        cache_name = name  # stable cache filename
-        cache_path = CACHE_ROOT / site / tournid / cache_name
-        print(f"fetch {base}{suffix}")
-        data = fetch(base + suffix, cache_path)
-        dest = FIX / subdir / name
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(cache_path, dest)
-        print(f"  -> {len(data)} bytes -> {dest.relative_to(REPO_ROOT)}")
+    with Fetcher() as fetcher:
+        for site, tournid, base, suffix, subdir, name in JOBS:
+            cache_path = CACHE_ROOT / site / tournid / name
+            print(f"fetch {base}{suffix}")
+            data = fetcher.get(base + suffix, cache_path)
+            dest = FIX / subdir / name
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(cache_path, dest)
+            print(f"  -> {len(data)} bytes -> {dest.relative_to(REPO_ROOT)}")
 
 
 if __name__ == "__main__":
