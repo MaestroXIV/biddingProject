@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block body %}
+<form class="filters" method="get" action="/">
+  <div class="grid">
+    <label>Tournament
+      <select name="tournament">
+        <option value="">any</option>
+        {% for t in tournaments %}
+        <option value="{{ t['slug'] }}" {{ 'selected' if f.tournament==t['slug'] }}>{{ t['name'] }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Player
+      <input name="player" value="{{ f.player }}" placeholder="e.g. KLUKOWSKI">
+    </label>
+    <label>Role
+      <select name="player_role">
+        <option value="any" {{ 'selected' if f.player_role=='any' }}>any seat</option>
+        <option value="opener" {{ 'selected' if f.player_role=='opener' }}>opener only</option>
+      </select>
+    </label>
+    <label>Partner (pair)
+      <input name="partner" value="{{ f.partner }}" placeholder="e.g. KALITA">
+    </label>
+    <label>Pair side
+      <select name="pair_side">
+        <option value="either" {{ 'selected' if f.pair_side=='either' }}>either side</option>
+        <option value="opening" {{ 'selected' if f.pair_side=='opening' }}>opening side</option>
+      </select>
+    </label>
+    <label>Opening call
+      <select name="opening_call">
+        <option value="">any</option>
+        {% for c in opening_calls %}
+        <option value="{{ c }}" {{ 'selected' if f.opening_call==c }}>{{ c }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Position
+      <select name="position">
+        <option value="">any</option>
+        {% for p in [1,2,3,4] %}
+        <option value="{{ p }}" {{ 'selected' if f.position==p|string }}>{{ p }}{{ {1:'st',2:'nd',3:'rd',4:'th'}[p] }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Dealer
+      <select name="dealer">
+        <option value="">any</option>
+        {% for s in ['N','E','S','W'] %}<option value="{{ s }}" {{ 'selected' if f.dealer==s }}>{{ s }}</option>{% endfor %}
+      </select>
+    </label>
+    <label>Vulnerability
+      <select name="vul">
+        <option value="">any</option>
+        {% for v in ['NONE','NS','EW','ALL'] %}<option value="{{ v }}" {{ 'selected' if f.vul==v }}>{{ v }}</option>{% endfor %}
+      </select>
+    </label>
+    <label>Competitive
+      <select name="competitive">
+        <option value="">any</option>
+        <option value="0" {{ 'selected' if f.competitive=='0' }}>uncontested</option>
+        <option value="1" {{ 'selected' if f.competitive=='1' }}>competitive</option>
+      </select>
+    </label>
+    <label>Contract
+      <input name="contract" value="{{ f.contract }}" placeholder="e.g. 4H">
+    </label>
+    <label>Round from
+      <input name="round_from" value="{{ f.round_from }}" size="3">
+    </label>
+    <label>Round to
+      <input name="round_to" value="{{ f.round_to }}" size="3">
+    </label>
+  </div>
+  <div class="actions">
+    <button type="submit">Search</button>
+    <a class="btn" href="/">Reset</a>
+    {% if has_query %}<a class="btn" href="/export.csv?{{ qs }}">Export CSV</a>{% endif %}
+  </div>
+</form>
+
+{% if has_query %}
+<div class="resultbar">{{ total }} board instance{{ '' if total==1 else 's' }} match — showing {{ results|length }}</div>
+<div class="cards">
+  {% for r in results %}
+  <div class="card">
+    <div class="chead">
+      <a href="/deal/{{ r.deal_id }}">{{ r.tslug }} · R{{ r.round_no }} · Board {{ r.board_no }}</a>
+      <span class="room">{{ r.room }}</span>
+      <span class="teams">{{ r.home_team }} vs {{ r.visiting_team }}</span>
+    </div>
+    <div class="cmeta">
+      Dealer {{ r.dealer }} · {{ r.vul }}
+      {% if r.opening_call %}· opened <b>{{ r.opening_call|call }}</b> ({{ r.opener_seat }}, {{ r.opener_rel_pos }}{{ {1:'st',2:'nd',3:'rd',4:'th'}.get(r.opener_rel_pos,'') }}){% endif %}
+      {% if r.competitive %}· competitive{% endif %}
+    </div>
+    {% if r.opener_hand %}<div class="ohand">opener {{ r.opener_seat }}: {{ r.opener_hand|hand }}</div>{% endif %}
+    <div class="auction">{{ auction_oneliner(r.from_opener, r.calls_list, r.dealer) }}</div>
+    <div class="cfoot">
+      <span>{{ r.contract }} {% if r.declarer %}by {{ r.declarer }}{% endif %}
+        {% if r.tricks is not none %}· {{ r.tricks }} tr{% endif %}
+        {% if r.score_ns is not none %}· NS {{ r.score_ns }}{% endif %}
+        {% if r.score_ew is not none %}· EW {{ r.score_ew }}{% endif %}</span>
+      <a class="src" href="{{ r.source_url }}" target="_blank" rel="noopener">source ↗</a>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<div class="pager">
+  {% if page > 0 %}<a class="btn" href="/?{{ qs }}&page={{ page-1 }}">← prev</a>{% endif %}
+  {% if (page+1)*page_size < total %}<a class="btn" href="/?{{ qs }}&page={{ page+1 }}">next →</a>{% endif %}
+</div>
+{% else %}
+<p class="hint">Set a filter and hit Search. Try: <a href="/?tournament=riga&player=KLUKOWSKI&partner=KALITA&pair_side=opening&opening_call=1C">Kalita–Klukowski opened 1♣ at Riga</a>.</p>
+{% endif %}
+{% endblock %}

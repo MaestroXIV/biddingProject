@@ -3,3 +3,7 @@ selectolax
 pytest
 playwright        # EBL only: real Chromium to pass the Cloudflare JS challenge
 # after install run: python -m playwright install chromium
+fastapi           # browse UI (M2)
+uvicorn[standard]
+jinja2
+python-multipart

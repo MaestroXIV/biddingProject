@@ -21,3 +21,13 @@ from a residential connection (EBL 403s cloud IPs — see `docs/format-notes.md`
     .venv/bin/python ingest/fetch_fixtures.py
 
 The Riga golden tests skip until those fixtures exist, then pass automatically.
+
+## M2 — browse UI
+
+    .venv/bin/uvicorn app:app --app-dir web --reload
+
+Then open http://127.0.0.1:8000 . Filter boards (tournament, player, pair,
+opening call, position, vulnerability, competitive, contract…), click any card
+to open the **deal traveller** (full diagram + every table's auction, filterable
+by opening call), and follow the "source" links back to the official EBL/WBF
+pages. "Export CSV" downloads the current result set.

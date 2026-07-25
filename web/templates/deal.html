@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}{{ d['tslug'] }} R{{ d['round_no'] }} Board {{ d['board_no'] }} — BoardBase{% endblock %}
+{% block body %}
+<a class="back" href="javascript:history.back()">← back to results</a>
+
+<div class="dealhead">
+  <h2>{{ d['tname'] }} · Round {{ d['round_no'] }} · Board {{ d['board_no'] }}</h2>
+  <div class="cmeta">Dealer {{ d['dealer'] }} · {{ d['vul'] }} vulnerable</div>
+  <a class="src" href="{{ board_across }}" target="_blank" rel="noopener">official deal page (BoardAcross) ↗</a>
+</div>
+
+<div class="diagram">
+  <div class="pos n">N {{ d['hand_n']|hand }}</div>
+  <div class="midrow">
+    <div class="pos w">W {{ d['hand_w']|hand }}</div>
+    <div class="compass">{{ d['board_no'] }}</div>
+    <div class="pos e">E {{ d['hand_e']|hand }}</div>
+  </div>
+  <div class="pos s">S {{ d['hand_s']|hand }}</div>
+</div>
+
+<form class="travfilter" method="get">
+  <label>Filter tables by opening call
+    <select name="opening_call" onchange="this.form.submit()">
+      <option value="">all tables</option>
+      {% for c in opening_calls %}
+      <option value="{{ c }}" {{ 'selected' if opening_call==c }}>{{ c }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <span class="tcount">{{ rows|length }} table{{ '' if rows|length==1 else 's' }}</span>
+</form>
+
+<div class="travellers">
+  {% for row in rows %}
+  {% set r = row.r %}
+  <div class="traveller">
+    <div class="thead">
+      <span class="teams">{{ r['home_team'] }} vs {{ r['visiting_team'] }}</span>
+      <span class="room">{{ r['room'] }}</span>
+      <span class="res">{{ r['contract'] }}{% if r['declarer'] %} by {{ r['declarer'] }}{% endif %}
+        {% if r['tricks'] is not none %}· {{ r['tricks'] }} tr{% endif %}
+        {% if r['score_ns'] is not none %}· NS {{ r['score_ns'] }}{% endif %}
+        {% if r['score_ew'] is not none %}· EW {{ r['score_ew'] }}{% endif %}</span>
+    </div>
+    <table class="auc">
+      <thead><tr>{% for s in SEATS_WNES %}<th>{{ s }}<br><small>{{ row.players.get(s,'') }}</small></th>{% endfor %}</tr></thead>
+      <tbody>
+        {% for line in auction_grid(row.calls_list, d['dealer'], r['opener_rel_pos']) %}
+        <tr>{% for cell, is_open in line %}<td class="{{ 'open' if is_open }}">{{ cell }}</td>{% endfor %}</tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}
