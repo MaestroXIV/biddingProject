@@ -22,6 +22,20 @@ from a residential connection (EBL 403s cloud IPs — see `docs/format-notes.md`
 
 The Riga golden tests skip until those fixtures exist, then pass automatically.
 
+## Adding more events
+
+Every event is one `ingest` command. New WBF events are quick (plain HTTP); EBL
+events open your real Chrome once for the Cloudflare check.
+
+    .venv/bin/python ingest/cli.py list
+    .venv/bin/python ingest/cli.py ingest --site WBF \
+        --base http://db.worldbridge.org/Repository/tourn/Herning.25/microSite/Asp/ \
+        --tournid 2551 --name "Venice Cup 2025" --year 2025 --series "Venice Cup"
+
+The event is remembered in `data/tournaments.json`. WBF parallel series share a
+microsite with different tournids (Herning: Bermuda Bowl 2550, Venice Cup 2551,
+d'Orsi 2552, Wuhan Cup 2553).
+
 ## M2 — browse UI
 
     .venv/bin/uvicorn app:app --app-dir web --reload

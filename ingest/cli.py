@@ -1,19 +1,44 @@
 """`bb` command-line interface (SPEC 7.6).
 
     bb ingest [keys...]   crawl (network) then parse+store+derive+integrity
+    bb ingest --site EBL --base <AspURL> --tournid N --name "..." --year Y
+              [--series "..."] [--key slug]    register + ingest a NEW event
     bb reparse            rebuild DB from the raw cache only (no network)
     bb derive             recompute derived tables from the DB
     bb stats              row counts per tournament + integrity check
+    bb list               show registered tournaments
 """
 from __future__ import annotations
 
+import argparse
+import re
 import sys
 
 import crawl
 import derive as derive_mod
 import integrity
 import store
-from registry import TOURNAMENTS
+from registry import TOURNAMENTS, Tournament, register
+
+
+def _register_from_flags(argv: list[str]) -> str:
+    p = argparse.ArgumentParser(prog="bb ingest", add_help=False)
+    p.add_argument("--site", required=True, choices=["EBL", "WBF"])
+    p.add_argument("--base", required=True)
+    p.add_argument("--tournid", required=True, type=int)
+    p.add_argument("--name", required=True)
+    p.add_argument("--year", required=True, type=int)
+    p.add_argument("--series", default="")
+    p.add_argument("--key", default=None)
+    a = p.parse_args(argv)
+    base = a.base if a.base.endswith("/") else a.base + "/"
+    key = a.key or re.sub(r"[^a-z0-9]+", "-",
+                          f"{a.name}-{a.year}".lower()).strip("-")
+    t = Tournament(key=key, site=a.site, base=base, tournid=a.tournid,
+                   name=a.name, year=a.year, series=a.series)
+    register(t)
+    print(f"registered '{key}': {a.name} ({a.site} {a.tournid})")
+    return key
 
 
 def _cached_keys() -> list[str]:
@@ -25,12 +50,19 @@ def _cached_keys() -> list[str]:
 
 
 def cmd_ingest(keys: list[str]) -> None:
+    if any(a.startswith("--") for a in keys):     # new event by flags
+        keys = [_register_from_flags(keys)]
     keys = keys or list(TOURNAMENTS)
     with crawl.Fetcher() as fetcher:
         for key in keys:
             print(f"=== crawling {key} ===", flush=True)
             crawl.crawl(TOURNAMENTS[key], fetcher)
     cmd_reparse(keys)
+
+
+def cmd_list(_keys: list[str]) -> None:
+    for key, t in TOURNAMENTS.items():
+        print(f"  {key:16} {t.site} {t.tournid}  {t.name} ({t.year})")
 
 
 def cmd_reparse(keys: list[str]) -> None:
@@ -76,7 +108,7 @@ def cmd_stats(_keys: list[str]) -> None:
 
 
 COMMANDS = {"ingest": cmd_ingest, "reparse": cmd_reparse,
-            "derive": cmd_derive, "stats": cmd_stats}
+            "derive": cmd_derive, "stats": cmd_stats, "list": cmd_list}
 
 
 def main(argv: list[str]) -> None:

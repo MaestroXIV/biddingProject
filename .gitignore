@@ -8,3 +8,4 @@ data/boardbase.db
 .DS_Store
 data/browserprofile/
 data/chromeprofile/
+!data/tournaments.json

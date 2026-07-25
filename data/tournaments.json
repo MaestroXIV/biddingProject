@@ -1,0 +1,29 @@
+[
+  {
+    "key": "venice25",
+    "site": "WBF",
+    "base": "http://db.worldbridge.org/Repository/tourn/Herning.25/microSite/Asp/",
+    "tournid": 2551,
+    "name": "Venice Cup 2025",
+    "year": 2025,
+    "series": "Venice Cup"
+  },
+  {
+    "key": "dorsi25",
+    "site": "WBF",
+    "base": "http://db.worldbridge.org/Repository/tourn/Herning.25/microSite/Asp/",
+    "tournid": 2552,
+    "name": "d'Orsi Trophy 2025",
+    "year": 2025,
+    "series": "d'Orsi Trophy"
+  },
+  {
+    "key": "wuhan25",
+    "site": "WBF",
+    "base": "http://db.worldbridge.org/Repository/tourn/Herning.25/microSite/Asp/",
+    "tournid": 2553,
+    "name": "Wuhan Cup 2025",
+    "year": 2025,
+    "series": "Wuhan Cup"
+  }
+]
