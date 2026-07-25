@@ -67,18 +67,19 @@ def cmd_list(_keys: list[str]) -> None:
 
 def cmd_discover(args: list[str]) -> None:
     import discover as disc
-    url = args[0]
-    span = int(args[1]) if len(args) > 1 else 12
-    site, base, found = disc.discover(url, span)
-    print(f"site {site}\nbase {base}\n")
-    print(f"  {'tournid':7} {'matches':7}  series")
-    for r in found:
-        print(f"  {r['tournid']:7} {r['matches']:7}  {r['series']}")
-    print("\nTeam RR events usually show 12-16 matches. To ingest, e.g.:")
-    if found:
-        r = found[0]
-        print(f"  bb ingest --site {site} --base {base} --tournid {r['tournid']} "
-              f"--name \"{r['series']} <year>\" --year <year>")
+    urls = [a for a in args if not a.isdigit()]
+    span = next((int(a) for a in args if a.isdigit()), 8)
+    with crawl.Fetcher() as f:
+        for url in urls:
+            try:
+                site, base, found = disc.discover(url, span, fetcher=f)
+            except Exception as e:
+                print(f"\n### {url}\n  ERROR: {e}")
+                continue
+            print(f"\n### {url}\nsite {site}\nbase {base}")
+            print(f"  {'tournid':7} {'matches':7}  series")
+            for r in found:
+                print(f"  {r['tournid']:7} {r['matches']:7}  {r['series']}")
 
 
 def cmd_reparse(keys: list[str]) -> None:
