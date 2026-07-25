@@ -1,0 +1,806 @@
+
+
+<html>
+<head>
+<title>Results</title>
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+
+
+<style type="text/css">
+<!--
+a:link {color: #cf691f; text-decoration: none;}
+a:visited {color: #cf691f; text-decoration: none;}
+a:active { color: #00508F; text-decoration: none;}
+a:hover { color: #00508F; text-decoration: none;}
+
+.cur_row {
+color: #000;
+background: #FFE3B3;
+}
+
+.cur_col {
+color: #000;
+background: #FFF9B5;
+}
+
+.cur_cell {
+color: #000;
+background: #FDC743;
+}
+
+.Spanstylehometeam { color: #0066FF; background-color: #E5B15D; font-weight: bold;}
+a.SpanStyleHomeTeam:link {  color: black; text-decoration: none}
+a.SpanStyleHomeTeam:visited {  color: black; text-decoration: none}
+a.SpanStyleHomeTeam:active {  color: #00984a; text-decoration: none}
+a.SpanStyleHomeTeam:hover {  color: #00984a; text-decoration: none}
+
+.SpanStyleVisitingTeam { color: #0066FF; background-color: #0246B7; font-weight: bold;}
+a.SpanStyleVisitingTeam:link {  color: white; text-decoration: none}
+a.SpanStyleVisitingTeam:visited {  color: white; text-decoration: none}
+a.SpanStyleVisitingTeam:active {  color: #00984a; text-decoration: none}
+a.SpanStyleVisitingTeam:hover {  color: #00984a; text-decoration: none}
+
+
+
+.Item {  font-family: Arial, Helvetica, sans-serif; font-size: 12pt; font-weight: bold; color: #FFFFFF; background-color: #0099CC}
+.Text {  font-family: Verdana, Arial, Helvetica, sans-serif; font-size: 10pt; font-weight: normal}
+.TextTable {  font-family: Verdana, Arial, Helvetica, sans-serif; font-size: 10pt; font-weight: normal}
+.TextSmall { font-family: Verdana, Arial, Helvetica, sans-serif; font-size: 9pt; font-weight: normal; color: #000000 }
+.BrdDispl {  font-family: Verdana, Arial, Helvetica, sans-serif; font-size: 13pt; font-weight: normal}
+
+a.tooltip {
+  border-bottom: 1px dashed;
+  text-decoration: none;
+  color: #000000;
+}
+a.tooltip:hover {
+  color: #000000;
+  cursor: help;
+  position: relative;
+}
+a.tooltip span {
+  display: none;
+}
+a.tooltip:hover span {
+  border: #666 2px dotted;
+  padding: 5px 20px 5px 5px;
+  display: block;
+  z-index: 100;
+  background: #e3e3e3;
+  left: 0px;
+  margin: 15px;
+  width: 300px;
+  position: absolute;
+  top: 15px;
+  text-decoration: none;
+}
+-->
+</style>
+<script language="JavaScript">
+<!--
+
+window.onload=function()
+{
+    init();
+}
+
+function init()
+{
+    var table=document.getElementById('highlight');
+
+    function highlight(row, col, state)
+    {
+        for(var i=0; i<table.rows.length; i++)
+        {
+            if(state=='off')
+            {
+                for(var j=0; j<table.rows[i].cells.length; j++)
+                {
+                    table.rows[i].cells[j].className='';
+                }
+            }
+
+            if(state=='on')
+            {
+                table.rows[i].cells[col].className='cur_col';
+            }
+        }
+
+        for(var i=0; i<table.rows[row].cells.length; i++)
+        {
+            if(state=='on')
+            {
+                table.rows[row].cells[i].className='cur_row';
+                table.rows[row].cells[col].className='cur_cell';
+            }
+        }
+    }
+    // end function highlight
+
+    // detect cursor position
+    for(var i=0; i<table.rows.length; i++)
+    {
+        table.rows[i].row_index=i;
+        for(var j=0; j<table.rows[i].cells.length; j++)
+        {
+            table.rows[i].cells[j].column_index=j;
+            table.rows[i].cells[j].onmouseover=function()
+            {
+                highlight(this.parentNode.row_index, this.column_index, 'on');
+            }
+            table.rows[i].cells[j].onmouseout=function()
+            {
+                highlight(this.parentNode.row_index, this.column_index, 'off');
+            }
+        }
+    }
+}
+
+function MM_swapImgRestore() { //v3.0
+  var i,x,a=document.MM_sr; for(i=0;a&&i<a.length&&(x=a[i])&&x.oSrc;i++) x.src=x.oSrc;
+}
+
+function MM_preloadImages() { //v3.0
+  var d=document; if(d.images){ if(!d.MM_p) d.MM_p=new Array();
+    var i,j=d.MM_p.length,a=MM_preloadImages.arguments; for(i=0; i<a.length; i++)
+    if (a[i].indexOf("#")!=0){ d.MM_p[j]=new Image; d.MM_p[j++].src=a[i];}}
+}
+
+function MM_findObj(n, d) { //v4.0
+  var p,i,x;  if(!d) d=document; if((p=n.indexOf("?"))>0&&parent.frames.length) {
+    d=parent.frames[n.substring(p+1)].document; n=n.substring(0,p);}
+  if(!(x=d[n])&&d.all) x=d.all[n]; for (i=0;!x&&i<d.forms.length;i++) x=d.forms[i][n];
+  for(i=0;!x&&d.layers&&i<d.layers.length;i++) x=MM_findObj(n,d.layers[i].document);
+  if(!x && document.getElementById) x=document.getElementById(n); return x;
+}
+
+function MM_swapImage() { //v3.0
+  var i,j=0,x,a=MM_swapImage.arguments; document.MM_sr=new Array; for(i=0;i<(a.length-2);i+=3)
+   if ((x=MM_findObj(a[i]))!=null){document.MM_sr[j++]=x; if(!x.oSrc) x.oSrc=x.src; x.src=a[i+2];}
+}
+//-->
+</script>
+</head>
+
+
+
+
+
+<body text="#000000" bgcolor="#0246B7">
+<table border="1" cellspacing="0" cellpadding="10" align="center" width="970" bordercolor="#0056A2" class="Text">
+  <tr>
+    <td align="center" width="550" bgcolor="#CAE3FF"><b><font size="+2" face="Verdana, Arial, Helvetica, sans-serif" color="#0056a2">47th World Teams Championships</font></b></td>
+<td align="center"  bgcolor="#E5B17C"><b><font size="+1" face="Verdana, Arial, Helvetica, sans-serif" color="#0246B7"> Round 1</font></b></td>
+    <td align="center" bgcolor="#CAE3FF" width="170"><b><font size="+1" face="Verdana, Arial, Helvetica, sans-serif" color="#0056a2">
+      Bermuda Bowl
+    </font></b></td>
+  </tr>
+</table>
+<br>
+<table width="970" border="1" cellspacing="0" cellpadding="25" align="center" bordercolor="#0056A2" bgcolor="#CAE3FF">
+  <tr>
+    <td class="Text" >
+      <table border="1" cellspacing="0" width="100%" nowrap="NOWRAP" align="center" bordercolor="#0056a2" class="Text" cellpadding="2">
+
+
+        <tr>
+          <td  colspan="15">
+            <table width="100%" border="1" cellspacing="0" cellpadding="5" class="Text" bordercolor="#0056a2">
+              <tr align="center"> 
+                <td colspan="7">
+                	<table width="100%"  border="0" cellspacing="0" cellpadding="0">
+	                  <tr>
+	                    <td width="43%" bgcolor="#E5B17C"><div align="center"><b><font size="+1" color="white"><a style="color:black"  href="TeamDetails.asp?qteamid=1016">AUSTRALIA</a></font></b></div></td>
+	                    <td><div align="center"><font size="+1">vs</font></div></td>
+	                    <td width="44%" bgcolor="#0246B7"><div align="center"><b><font size="+1"><font color="white"><a style="color:white" href="TeamDetails.asp?qteamid=1021">TUNISIA</a></font></font></b></div></td>
+	                  </tr>
+                	</table>
+                  <font size="2"><br/><b>17.19 - 2.81 VP (<i>34 - 3 IMP</i>)
+                  </b></font>
+             		</td>
+              </tr>
+              <tr> 
+              	<td colspan="7"><br/>
+              		<table width="100%" border="0" cellspacing="0" cellpadding="5" class="Text" bordercolor="#0056A2">
+              			<tr>
+								                <td colspan="3" align="center" bgcolor="#B2D3F5" bordercolor="#0056a2"><b>Open Room</b></td>
+								                <td rowspan="4" width="120">&nbsp;</td>
+								                <td colspan="3" align="center" bgcolor="#B2D3F5" bordercolor="#0056a2"><b>Closed 
+								                  Room</b></td>
+								              </tr>
+								              <tr> 
+								                <td colspan="3" align="center"><font color="#000000">                  
+								                  <span class="SpanStyleHomeTeam">
+								                  	<a href="/people/person.asp?qryid=24488" target="_blank" class="SpanStyleHomeTeam"><img src="/repository/photogallery/photos/24488.jpg" alt="HAFFER Joachim" width=70>&nbsp;<br>HAFFER Joachim&nbsp;</a>
+								                  </span>
+								                  </font></td>
+								                <td colspan="3" align="center"><font color="#0246B7">
+								                	 <span class="SpanStyleVisitingTeam">
+								                  <a href="http://www.worldbridge.org/person?qryid=228266" target="_blank" class="SpanStyleVisitingTeam"><img src="/repository/photogallery/photos/228266.jpg" alt="FOURATI Moez" width=70>&nbsp;<br>FOURATI Moez&nbsp;</a>
+								                </span>
+								                  </font></td>
+								              </tr>
+								              <tr> 
+								                <td width="150" valign="middle"><font color="#0246B7">
+								                	<span class="SpanStyleVisitingTeam">
+								                  <a href="http://www.worldbridge.org/person?qryid=27858" target="_blank" class="SpanStyleVisitingTeam"><img src="/repository/photogallery/photos/27858.jpg" alt="MEDDEB Omar" width=70>&nbsp;<br>MEDDEB Omar&nbsp;</a>
+								                </span>
+								                  </font></td>
+								                <td width="80" valign="middle" align="center"><img src="/graphics/Hand/board3.gif" width="65" height="65"></td>
+								                <td width="150" valign="middle"><font color="#0246B7">
+								                	<span class="SpanStyleVisitingTeam">
+								                  <a href="http://www.worldbridge.org/person??qryid=219774" target="_blank" class="SpanStyleVisitingTeam"><img src="/repository/photogallery/photos/219774.jpg" alt="MEDDEB Ahmed" width=70>&nbsp;<br>MEDDEB Ahmed&nbsp;</a>
+								                </span>
+								                  </font></td>
+								                <td width="150" valign="middle"><font color="#000000">
+								                	<span class="SpanStyleHomeTeam">
+								                  <a href="http://www.worldbridge.org/person?qryid=8385" target="_blank" class="SpanStyleHomeTeam"><img src="/repository/photogallery/photos/8385.jpg" alt="WILTSHIRE David" width=70>&nbsp;<br>WILTSHIRE David&nbsp;</a>
+								                </span>
+								                  </font></td>
+								                <td width="80" align="center" valign="middle"><img src="/graphics/Hand/board3.gif" width="65" height="65"></td>
+								                <td valign="middle" width="150"><font color="#000000">
+								                	<span class="SpanStyleHomeTeam">
+								                  <a href="http://www.worldbridge.org/person?qryid=199787" target="_blank" class="SpanStyleHomeTeam"><img src="/repository/photogallery/photos/199787.jpg" alt="ASHTON Sophie" width=70>&nbsp;<br>ASHTON Sophie&nbsp;</a>
+								                </span>
+								                  </font></td>
+								              </tr>
+								              <tr> 
+								                <td colspan="3" align="center"><font color="#000000">
+								                	<span class="SpanStyleHomeTeam">
+								                  <a href="http://www.worldbridge.org/person?qryid=22894" target="_blank" class="SpanStyleHomeTeam"><img src="/repository/photogallery/photos/22894.jpg" alt="MARKEY Phil" width=70>&nbsp;<br>MARKEY Phil&nbsp;</a>
+								                </span>
+								                  </font></td>
+								                <td colspan="3" align="center"><font color="#0246B7">
+								                	<span class="SpanStyleVisitingTeam">
+								                  <a href="http://www.worldbridge.org/person?qryid=201051" target="_blank" class="SpanStyleVisitingTeam"><img src="/repository/photogallery/photos/201051.jpg" alt="GHODHBANE Mohamed Anis" width=70>&nbsp;<br>GHODHBANE Mohamed Anis&nbsp;</a>
+								                </span>
+								                  </font></td>
+								              </tr>
+								            </table>
+            </table>
+          </td>
+        </tr>
+
+
+
+        <tr align="CENTER"> 
+        <td valign="TOP">
+				  <table  border="0" cellspacing="0" cellpadding="5" width="100%" nowrap="NOWRAP" align="center" bordercolor="#0056a2" class="Text">
+        	<td style="width:40px;" align="CENTER" valign="MIDDLE" bgcolor="#E5B17C" class="Text" >&nbsp;</td>
+          <td style="width:330px;" align="CENTER" valign="MIDDLE" bgcolor="#E5B17C" class="Text" ><font color="#0246B7"><em><strong>Open Room</strong></em></font></td>
+          <td style="width:330px;" align="CENTER" valign="MIDDLE" bgcolor="#E5B17C" class="Text"><font color="#0246B7"><em><strong>Closed Room</strong></em></font></td>
+          <td  align="CENTER" valign="MIDDLE" bgcolor="#E5B17C" class="Text">&nbsp;</td>
+				</tr></table>
+        <table id="highlight" border="0" cellspacing="0" cellpadding="5" width="100%" nowrap="NOWRAP" align="center" bordercolor="#0056a2" class="Text">
+        <tr align="CENTER" valign="TOP" > 
+        	<td align="CENTER" width="100" valign="MIDDLE" bgcolor="#E5B17C"class="Text"><font color="#0246B7"><em><strong>Board</strong></em></font></td>
+          <td width="80" align="CENTER" valign="MIDDLE" bgcolor="#E5B17C" class="Text"><font color="#0246B7"><strong>Cont</strong></font></td>
+          <td width="80" align="CENTER" valign="MIDDLE" bgcolor="#E5B17C" class="Text"><font color="#0246B7"><strong>Decl</strong></font></td>
+          <td width="80" align="CENTER" valign="MIDDLE" bgcolor="#E5B17C" class="Text"><font color="#0246B7"><strong>Lead</strong></font></td>
+          <td width="80" align="CENTER" valign="MIDDLE" bgcolor="#E5B17C" class="Text"><font color="#0246B7"><strong>Tricks</strong></font></td>
+          <td width="80" align="CENTER" valign="MIDDLE" bgcolor="#E5B17C" class="Text"><font color="#0246B7"><strong>NS</strong></font></td>
+          <td width="80" align="CENTER" valign="MIDDLE" bgcolor="#E5B17C" class="Text"><font color="#0246B7"><strong>EW</strong></font></td>
+          <td width="80" align="CENTER" valign="MIDDLE" bgcolor="#E5B17C" class="Text"><font color="#0246B7"><strong>Cont</strong></font></td>
+          <td width="80" align="CENTER" valign="MIDDLE" bgcolor="#E5B17C" class="Text"><font color="#0246B7"><strong>Decl</strong></font></td>
+          <td width="80" align="CENTER" valign="MIDDLE" bgcolor="#E5B17C" class="Text"><font color="#0246B7"><strong>Lead</strong></font></td>
+          <td width="80" align="CENTER" valign="MIDDLE" bgcolor="#E5B17C" class="Text"><font color="#0246B7"><strong>Tricks</strong></font></td>
+          <td width="80" align="CENTER" valign="MIDDLE" bgcolor="#E5B17C" class="Text"><font color="#0246B7"><strong>NS</strong></font></td>
+          <td width="80" align="CENTER" valign="MIDDLE" bgcolor="#E5B17C" class="Text"><font color="#0246B7"><strong>EW</strong></font></td>
+          <td align="CENTER" width="100" valign="MIDDLE" bgcolor="#E5B17C" class="Text"><a href="TeamDetails.asp?qteamid=1016"><font color="#0246B7"><strong>AUSTRALIA</strong></font></a></td>
+          <td align="CENTER" width="100" valign="MIDDLE" bgcolor="#E5B17C" class="Text"><a href="TeamDetails.asp?qteamid=1021"><font color="#0246B7"><strong>TUNISIA</strong></font></a></td>
+      
+        </tr>
+
+
+        <tr height=6 valign="TOP" align="RIGHT" nowrap > 
+          <td align="CENTER" valign="top" class="Text" style="border-right:solid 2px #0056A2;"><a href="BoardAcross.asp?qboard=001.01..2550" target="_blank">1&nbsp;</a></td>
+          <td align="CENTER" valign="top" class="Text" >
+<a href="#" class="tooltip">3<font color="#C01616" face="Arial, Helvetica, sans-serif">&hearts;</font>
+        <span><table><tr align="center"><td><b>West</b></td><td><b>North</b></td><td><b>East</b></td><td><b>South</b></td></tr><tr  align="center"><td>-</td><td>2<font size="4">&spades;</font></td><td>2NT</td><td>Pass</td></tr><tr align="center"><td>3<font color="#C01616" size="4">&diams;</font></td><td>Pass</td><td>3<font color="#C01616" size="4">&hearts;</font></td><td>Pass</td></tr><tr align="center"><td>Pass</td><td>Pass</td><td> </table></span>
+</td>
+          <td align="CENTER" valign="top" class="Text" >E&nbsp;</td>
+          <td align="CENTER" valign="top" class="Text" >
+          <font face="Arial, Helvetica, sans-serif">&clubs;</font>A 
+          
+          
+          &nbsp;</td>
+          <td align="CENTER" valign="top" class="Text" ><a href="PlayDetails.asp?qboard=001.01..2550&qtournid=2550&qmatchid=153334" target="_blank">9&nbsp;</a></td>
+          <td align="CENTER" valign="top" class="Text" ><b>&nbsp;</b></td>
+          <td align="CENTER" valign="top" class="Text"  style="border-right:solid 2px #0056A2;"><b>140&nbsp;</b></td>
+          <td align="CENTER" valign="top" class="Text"  >
+<a href="#" class="tooltip">3<font color="#C01616" face="Arial, Helvetica, sans-serif">&hearts;</font>
+        <span><table><tr align="center"><td><b>West</b></td><td><b>North</b></td><td><b>East</b></td><td><b>South</b></td></tr><tr  align="center"><td>-</td><td>Pass</td><td>1NT</td><td>Pass</td></tr><tr align="center"><td>2<font color="#C01616" size="4">&diams;</font></td><td>Pass</td><td>2<font size="4">&spades;</font></td><td>Pass</td></tr><tr align="center"><td>3<font color="#C01616" size="4">&diams;</font></td><td>Pass</td><td>3<font color="#C01616" size="4">&hearts;</font></td><td>Pass</td></tr><tr align="center"><td>Pass</td><td>Pass</td><td> </table></span>
+</td>
+          <td align="CENTER" valign="top" class="Text" >E&nbsp;</td>
+          <td align="CENTER" valign="top" class="Text">
+                    <font face="Arial, Helvetica, sans-serif">&clubs;</font>A 
+
+          
+          
+          &nbsp;</td>
+          <td align="CENTER" valign="top" class="Text" ><a href="PlayDetails.asp?qboard=001.01..2550&qtournid=2550&qmatchid=153334" target="_blank">9&nbsp;</a></td>
+          <td align="CENTER" valign="top" class="Text" ><b>&nbsp;</b></td>
+          <td align="CENTER" valign="top" class="Text"  style="border-right:solid 2px #0056A2;"><b>140&nbsp;</b></td>
+          <td align="CENTER" valign="top" class="Text" class="Text" ><font color="#0056a2"><b>&nbsp;</b></font></td>
+          <td align="CENTER" valign="top" class="Text" class="Text"><font color="#0056a2"><b>&nbsp;</b></font></td>
+        </tr>
+
+        <tr height=6 valign="TOP" align="RIGHT" nowrap 
+          		bgcolor="#B2D3F5"
+          > 
+          <td align="CENTER" valign="top" class="Text" style="border-right:solid 2px #0056A2;"><a href="BoardAcross.asp?qboard=002.01..2550" target="_blank">2&nbsp;</a></td>
+          <td align="CENTER" valign="top" class="Text" >
+<a href="#" class="tooltip">5<font face="Arial, Helvetica, sans-serif">&spades;</font>
+        <span><table><tr align="center"><td><b>West</b></td><td><b>North</b></td><td><b>East</b></td><td><b>South</b></td></tr><tr  align="center"><td>-</td><td>-</td><td>3<font size="4">&spades;</font></td><td>Pass</td></tr><tr align="center"><td>4NT</td><td>Pass</td><td>5<font color="#C01616" size="4">&diams;</font></td><td>Pass</td></tr><tr align="center"><td>5<font color="#C01616" size="4">&hearts;</font></td><td>Pass</td><td>5<font size="4">&spades;</font></td><td>Pass</td></tr><tr align="center"><td>Pass</td><td>Pass</td><td> </table></span>
+</td>
+          <td align="CENTER" valign="top" class="Text" >E&nbsp;</td>
+          <td align="CENTER" valign="top" class="Text" >
+          <font color="#C01616" face="Arial, Helvetica, sans-serif">&hearts;</font>2 
+          
+          
+          &nbsp;</td>
+          <td align="CENTER" valign="top" class="Text" ><a href="PlayDetails.asp?qboard=002.01..2550&qtournid=2550&qmatchid=153334" target="_blank">10&nbsp;</a></td>
+          <td align="CENTER" valign="top" class="Text" ><b>50&nbsp;</b></td>
+          <td align="CENTER" valign="top" class="Text"  style="border-right:solid 2px #0056A2;"><b>&nbsp;</b></td>
+          <td align="CENTER" valign="top" class="Text"  >
+<a href="#" class="tooltip">4<font face="Arial, Helvetica, sans-serif">&spades;</font>
+        <span><table><tr align="center"><td><b>West</b></td><td><b>North</b></td><td><b>East</b></td><td><b>South</b></td></tr><tr  align="center"><td>-</td><td>-</td><td>3<font size="4">&spades;</font></td><td>Pass</td></tr><tr align="center"><td>4<font size="4">&spades;</font></td><td>Pass</td><td>Pass</td><td>Pass</td></tr><tr align="center"><td> </table></span>
+</td>
+          <td align="CENTER" valign="top" class="Text" >E&nbsp;</td>
+          <td align="CENTER" valign="top" class="Text">
+                    <font color="#C01616" face="Arial, Helvetica, sans-serif">&diams;</font>2 
+
+          
+          
+          &nbsp;</td>
+          <td align="CENTER" valign="top" class="Text" ><a href="PlayDetails.asp?qboard=002.01..2550&qtournid=2550&qmatchid=153334" target="_blank">8&nbsp;</a></td>
+          <td align="CENTER" valign="top" class="Text" ><b>100&nbsp;</b></td>
+          <td align="CENTER" valign="top" class="Text"  style="border-right:solid 2px #0056A2;"><b>&nbsp;</b></td>
+          <td align="CENTER" valign="top" class="Text" class="Text" ><font color="#0056a2"><b>&nbsp;</b></font></td>
+          <td align="CENTER" valign="top" class="Text" class="Text"><font color="#0056a2"><b>2&nbsp;</b></font></td>
+        </tr>
+
+        <tr height=6 valign="TOP" align="RIGHT" nowrap > 
+          <td align="CENTER" valign="top" class="Text" style="border-right:solid 2px #0056A2;"><a href="BoardAcross.asp?qboard=003.01..2550" target="_blank">3&nbsp;</a></td>
+          <td align="CENTER" valign="top" class="Text" >
+<a href="#" class="tooltip">4<font face="Arial, Helvetica, sans-serif">&spades;</font>
+        <span><table><tr align="center"><td><b>West</b></td><td><b>North</b></td><td><b>East</b></td><td><b>South</b></td></tr><tr  align="center"><td>-</td><td>-</td><td>-</td><td>2<font color="#C01616" size="4">&hearts;</font></td></tr><tr align="center"><td>Pass</td><td>4<font size="4">&spades;</font></td><td>Pass</td><td>Pass</td></tr><tr align="center"><td>Pass</td><td> </table></span>
+</td>
+          <td align="CENTER" valign="top" class="Text" >N&nbsp;</td>
+          <td align="CENTER" valign="top" class="Text" >
+          <font color="#C01616" face="Arial, Helvetica, sans-serif">&diams;</font>K 
+          
+          
+          &nbsp;</td>
+          <td align="CENTER" valign="top" class="Text" ><a href="PlayDetails.asp?qboard=003.01..2550&qtournid=2550&qmatchid=153334" target="_blank">7&nbsp;</a></td>
+          <td align="CENTER" valign="top" class="Text" ><b>&nbsp;</b></td>
+          <td align="CENTER" valign="top" class="Text"  style="border-right:solid 2px #0056A2;"><b>150&nbsp;</b></td>
+          <td align="CENTER" valign="top" class="Text"  >
+<a href="#" class="tooltip">6<font color="#C01616" face="Arial, Helvetica, sans-serif">&diams;</font>
+        <span><table><tr align="center"><td><b>West</b></td><td><b>North</b></td><td><b>East</b></td><td><b>South</b></td></tr><tr  align="center"><td>-</td><td>-</td><td>-</td><td>Pass</td></tr><tr align="center"><td>1<font size="4">&clubs;</font></td><td>2<font size="4">&spades;</font></td><td>3<font color="#C01616" size="4">&diams;</font></td><td>Pass</td></tr><tr align="center"><td>4<font color="#C01616" size="4">&diams;</font></td><td>Pass</td><td>4NT</td><td>Pass</td></tr><tr align="center"><td>5<font size="4">&clubs;</font></td><td>Pass</td><td>6<font color="#C01616" size="4">&diams;</font></td><td>Pass</td></tr><tr align="center"><td>Pass</td><td>Pass</td><td> </table></span>
+</td>
+          <td align="CENTER" valign="top" class="Text" >E&nbsp;</td>
+          <td align="CENTER" valign="top" class="Text">
+                    <font face="Arial, Helvetica, sans-serif">&spades;</font>A 
+
+          
+          
+          &nbsp;</td>
+          <td align="CENTER" valign="top" class="Text" ><a href="PlayDetails.asp?qboard=003.01..2550&qtournid=2550&qmatchid=153334" target="_blank">12&nbsp;</a></td>
+          <td align="CENTER" valign="top" class="Text" ><b>&nbsp;</b></td>
+          <td align="CENTER" valign="top" class="Text"  style="border-right:solid 2px #0056A2;"><b>1370&nbsp;</b></td>
+          <td align="CENTER" valign="top" class="Text" class="Text" ><font color="#0056a2"><b>15&nbsp;</b></font></td>
+          <td align="CENTER" valign="top" class="Text" class="Text"><font color="#0056a2"><b>&nbsp;</b></font></td>
+        </tr>
+
+        <tr height=6 valign="TOP" align="RIGHT" nowrap 
+          		bgcolor="#B2D3F5"
+          > 
+          <td align="CENTER" valign="top" class="Text" style="border-right:solid 2px #0056A2;"><a href="BoardAcross.asp?qboard=004.01..2550" target="_blank">4&nbsp;</a></td>
+          <td align="CENTER" valign="top" class="Text" >
+<a href="#" class="tooltip">3<font color="#C01616" face="Arial, Helvetica, sans-serif">&diams;</font>
+        <span><table><tr align="center"><td><b>West</b></td><td><b>North</b></td><td><b>East</b></td><td><b>South</b></td></tr><tr  align="center"><td>Pass</td><td>Pass</td><td>1<font color="#C01616" size="4">&diams;</font></td><td>2<font size="4">&clubs;</font></td></tr><tr align="center"><td>2<font color="#C01616" size="4">&diams;</font></td><td>3<font size="4">&clubs;</font></td><td>3<font color="#C01616" size="4">&diams;</font></td><td>Pass</td></tr><tr align="center"><td>Pass</td><td>Pass</td><td> </table></span>
+</td>
+          <td align="CENTER" valign="top" class="Text" >E&nbsp;</td>
+          <td align="CENTER" valign="top" class="Text" >
+          <font color="#C01616" face="Arial, Helvetica, sans-serif">&diams;</font>T 
+          
+          
+          &nbsp;</td>
+          <td align="CENTER" valign="top" class="Text" ><a href="PlayDetails.asp?qboard=004.01..2550&qtournid=2550&qmatchid=153334" target="_blank">10&nbsp;</a></td>
+          <td align="CENTER" valign="top" class="Text" ><b>&nbsp;</b></td>
+          <td align="CENTER" valign="top" class="Text"  style="border-right:solid 2px #0056A2;"><b>130&nbsp;</b></td>
+          <td align="CENTER" valign="top" class="Text"  >
+<a href="#" class="tooltip">3<font color="#C01616" face="Arial, Helvetica, sans-serif">&hearts;</font>
+        <span><table><tr align="center"><td><b>West</b></td><td><b>North</b></td><td><b>East</b></td><td><b>South</b></td></tr><tr  align="center"><td>Pass</td><td>Pass</td><td>1<font color="#C01616" size="4">&diams;</font></td><td>x</td></tr><tr align="center"><td>1<font size="4">&spades;</font></td><td>Pass</td><td>2<font size="4">&spades;</font></td><td>Pass</td></tr><tr align="center"><td>Pass</td><td>3<font color="#C01616" size="4">&hearts;</font></td><td>Pass</td><td>Pass</td></tr><tr align="center"><td>Pass</td><td> </table></span>
+</td>
+          <td align="CENTER" valign="top" class="Text" >N&nbsp;</td>
+          <td align="CENTER" valign="top" class="Text">
+                    <font face="Arial, Helvetica, sans-serif">&clubs;</font>T 
+
+          
+          
+          &nbsp;</td>
+          <td align="CENTER" valign="top" class="Text" ><a href="PlayDetails.asp?qboard=004.01..2550&qtournid=2550&qmatchid=153334" target="_blank">8&nbsp;</a></td>
+          <td align="CENTER" valign="top" class="Text" ><b>&nbsp;</b></td>
+          <td align="CENTER" valign="top" class="Text"  style="border-right:solid 2px #0056A2;"><b>100&nbsp;</b></td>
+          <td align="CENTER" valign="top" class="Text" class="Text" ><font color="#0056a2"><b>&nbsp;</b></font></td>
+          <td align="CENTER" valign="top" class="Text" class="Text"><font color="#0056a2"><b>1&nbsp;</b></font></td>
+        </tr>
+
+        <tr height=6 valign="TOP" align="RIGHT" nowrap > 
+          <td align="CENTER" valign="top" class="Text" style="border-right:solid 2px #0056A2;"><a href="BoardAcross.asp?qboard=005.01..2550" target="_blank">5&nbsp;</a></td>
+          <td align="CENTER" valign="top" class="Text" >
+<a href="#" class="tooltip">4<font face="Arial, Helvetica, sans-serif">&spades;</font>
+        <span><table><tr align="center"><td><b>West</b></td><td><b>North</b></td><td><b>East</b></td><td><b>South</b></td></tr><tr  align="center"><td>-</td><td>Pass</td><td>1<font color="#C01616" size="4">&hearts;</font></td><td>2<font color="#C01616" size="4">&diams;</font></td></tr><tr align="center"><td>x</td><td>3<font color="#C01616" size="4">&diams;</font></td><td>3<font size="4">&spades;</font></td><td>Pass</td></tr><tr align="center"><td>4<font size="4">&spades;</font></td><td>Pass</td><td>Pass</td><td>Pass</td></tr><tr align="center"><td> </table></span>
+</td>
+          <td align="CENTER" valign="top" class="Text" >E&nbsp;</td>
+          <td align="CENTER" valign="top" class="Text" >
+          <font color="#C01616" face="Arial, Helvetica, sans-serif">&diams;</font>A 
+          
+          
+          &nbsp;</td>
+          <td align="CENTER" valign="top" class="Text" ><a href="PlayDetails.asp?qboard=005.01..2550&qtournid=2550&qmatchid=153334" target="_blank">11&nbsp;</a></td>
+          <td align="CENTER" valign="top" class="Text" ><b>&nbsp;</b></td>
+          <td align="CENTER" valign="top" class="Text"  style="border-right:solid 2px #0056A2;"><b>450&nbsp;</b></td>
+          <td align="CENTER" valign="top" class="Text"  >
+<a href="#" class="tooltip">4<font face="Arial, Helvetica, sans-serif">&spades;</font>
+        <span><table><tr align="center"><td><b>West</b></td><td><b>North</b></td><td><b>East</b></td><td><b>South</b></td></tr><tr  align="center"><td>-</td><td>Pass</td><td>1<font size="4">&spades;</font></td><td>2<font color="#C01616" size="4">&diams;</font></td></tr><tr align="center"><td>2NT</td><td>Pass</td><td>3<font size="4">&clubs;</font></td><td>Pass</td></tr><tr align="center"><td>3<font color="#C01616" size="4">&diams;</font></td><td>Pass</td><td>3NT</td><td>Pass</td></tr><tr align="center"><td>4<font size="4">&clubs;</font></td><td>Pass</td><td>4<font color="#C01616" size="4">&hearts;</font></td><td>Pass</td></tr><tr align="center"><td>4<font size="4">&spades;</font></td><td>Pass</td><td>Pass</td><td>Pass</td></tr><tr align="center"><td> </table></span>
+</td>
+          <td align="CENTER" valign="top" class="Text" >E&nbsp;</td>
+          <td align="CENTER" valign="top" class="Text">
+                    <font face="Arial, Helvetica, sans-serif">&spades;</font>9 
+
+          
+          
+          &nbsp;</td>
+          <td align="CENTER" valign="top" class="Text" ><a href="PlayDetails.asp?qboard=005.01..2550&qtournid=2550&qmatchid=153334" target="_blank">11&nbsp;</a></td>
+          <td align="CENTER" valign="top" class="Text" ><b>&nbsp;</b></td>
+          <td align="CENTER" valign="top" class="Text"  style="border-right:solid 2px #0056A2;"><b>450&nbsp;</b></td>
+          <td align="CENTER" valign="top" class="Text" class="Text" ><font color="#0056a2"><b>&nbsp;</b></font></td>
+          <td align="CENTER" valign="top" class="Text" class="Text"><font color="#0056a2"><b>&nbsp;</b></font></td>
+        </tr>
+
+        <tr height=6 valign="TOP" align="RIGHT" nowrap 
+          		bgcolor="#B2D3F5"
+          > 
+          <td align="CENTER" valign="top" class="Text" style="border-right:solid 2px #0056A2;"><a href="BoardAcross.asp?qboard=006.01..2550" target="_blank">6&nbsp;</a></td>
+          <td align="CENTER" valign="top" class="Text" >
+<a href="#" class="tooltip">2<font color="#C01616" face="Arial, Helvetica, sans-serif">&hearts;</font>
+        <span><table><tr align="center"><td><b>West</b></td><td><b>North</b></td><td><b>East</b></td><td><b>South</b></td></tr><tr  align="center"><td>-</td><td>-</td><td>1<font color="#C01616" size="4">&hearts;</font></td><td>1<font size="4">&spades;</font></td></tr><tr align="center"><td>Pass</td><td>Pass</td><td>2<font color="#C01616" size="4">&hearts;</font></td><td>Pass</td></tr><tr align="center"><td>Pass</td><td>Pass</td><td> </table></span>
+</td>
+          <td align="CENTER" valign="top" class="Text" >E&nbsp;</td>
+          <td align="CENTER" valign="top" class="Text" >
+          <font face="Arial, Helvetica, sans-serif">&clubs;</font>6 
+          
+          
+          &nbsp;</td>
+          <td align="CENTER" valign="top" class="Text" ><a href="PlayDetails.asp?qboard=006.01..2550&qtournid=2550&qmatchid=153334" target="_blank">7&nbsp;</a></td>
+          <td align="CENTER" valign="top" class="Text" ><b>100&nbsp;</b></td>
+          <td align="CENTER" valign="top" class="Text"  style="border-right:solid 2px #0056A2;"><b>&nbsp;</b></td>
+          <td align="CENTER" valign="top" class="Text"  >
+<a href="#" class="tooltip">4<font color="#C01616" face="Arial, Helvetica, sans-serif">&hearts;</font>
+        <span><table><tr align="center"><td><b>West</b></td><td><b>North</b></td><td><b>East</b></td><td><b>South</b></td></tr><tr  align="center"><td>-</td><td>-</td><td>1<font color="#C01616" size="4">&hearts;</font></td><td>2<font size="4">&spades;</font></td></tr><tr align="center"><td>x</td><td>Pass</td><td>4<font color="#C01616" size="4">&hearts;</font></td><td>Pass</td></tr><tr align="center"><td>Pass</td><td>Pass</td><td> </table></span>
+</td>
+          <td align="CENTER" valign="top" class="Text" >E&nbsp;</td>
+          <td align="CENTER" valign="top" class="Text">
+                    <font face="Arial, Helvetica, sans-serif">&spades;</font>Q 
+
+          
+          
+          &nbsp;</td>
+          <td align="CENTER" valign="top" class="Text" ><a href="PlayDetails.asp?qboard=006.01..2550&qtournid=2550&qmatchid=153334" target="_blank">9&nbsp;</a></td>
+          <td align="CENTER" valign="top" class="Text" ><b>100&nbsp;</b></td>
+          <td align="CENTER" valign="top" class="Text"  style="border-right:solid 2px #0056A2;"><b>&nbsp;</b></td>
+          <td align="CENTER" valign="top" class="Text" class="Text" ><font color="#0056a2"><b>&nbsp;</b></font></td>
+          <td align="CENTER" valign="top" class="Text" class="Text"><font color="#0056a2"><b>&nbsp;</b></font></td>
+        </tr>
+
+        <tr height=6 valign="TOP" align="RIGHT" nowrap > 
+          <td align="CENTER" valign="top" class="Text" style="border-right:solid 2px #0056A2;"><a href="BoardAcross.asp?qboard=007.01..2550" target="_blank">7&nbsp;</a></td>
+          <td align="CENTER" valign="top" class="Text" >
+<a href="#" class="tooltip">2<font face="Arial, Helvetica, sans-serif">&spades;</font>
+        <span><table><tr align="center"><td><b>West</b></td><td><b>North</b></td><td><b>East</b></td><td><b>South</b></td></tr><tr  align="center"><td>-</td><td>-</td><td>-</td><td>Pass</td></tr><tr align="center"><td>1NT</td><td>Pass</td><td>2<font size="4">&clubs;</font></td><td>Pass</td></tr><tr align="center"><td>2<font color="#C01616" size="4">&diams;</font></td><td>Pass</td><td>2<font size="4">&spades;</font></td><td>Pass</td></tr><tr align="center"><td>Pass</td><td>Pass</td><td> </table></span>
+</td>
+          <td align="CENTER" valign="top" class="Text" >E&nbsp;</td>
+          <td align="CENTER" valign="top" class="Text" >
+          <font face="Arial, Helvetica, sans-serif">&clubs;</font>8 
+          
+          
+          &nbsp;</td>
+          <td align="CENTER" valign="top" class="Text" ><a href="PlayDetails.asp?qboard=007.01..2550&qtournid=2550&qmatchid=153334" target="_blank">11&nbsp;</a></td>
+          <td align="CENTER" valign="top" class="Text" ><b>&nbsp;</b></td>
+          <td align="CENTER" valign="top" class="Text"  style="border-right:solid 2px #0056A2;"><b>200&nbsp;</b></td>
+          <td align="CENTER" valign="top" class="Text"  >
+<a href="#" class="tooltip">2<font face="Arial, Helvetica, sans-serif">&spades;</font>
+        <span><table><tr align="center"><td><b>West</b></td><td><b>North</b></td><td><b>East</b></td><td><b>South</b></td></tr><tr  align="center"><td>-</td><td>-</td><td>-</td><td>Pass</td></tr><tr align="center"><td>1NT</td><td>Pass</td><td>2<font color="#C01616" size="4">&diams;</font></td><td>Pass</td></tr><tr align="center"><td>2<font color="#C01616" size="4">&hearts;</font></td><td>Pass</td><td>2<font size="4">&spades;</font></td><td>Pass</td></tr><tr align="center"><td>Pass</td><td>Pass</td><td> </table></span>
+</td>
+          <td align="CENTER" valign="top" class="Text" >E&nbsp;</td>
+          <td align="CENTER" valign="top" class="Text">
+                    <font face="Arial, Helvetica, sans-serif">&spades;</font>T 
+
+          
+          
+          &nbsp;</td>
+          <td align="CENTER" valign="top" class="Text" ><a href="PlayDetails.asp?qboard=007.01..2550&qtournid=2550&qmatchid=153334" target="_blank">11&nbsp;</a></td>
+          <td align="CENTER" valign="top" class="Text" ><b>&nbsp;</b></td>
+          <td align="CENTER" valign="top" class="Text"  style="border-right:solid 2px #0056A2;"><b>200&nbsp;</b></td>
+          <td align="CENTER" valign="top" class="Text" class="Text" ><font color="#0056a2"><b>&nbsp;</b></font></td>
+          <td align="CENTER" valign="top" class="Text" class="Text"><font color="#0056a2"><b>&nbsp;</b></font></td>
+        </tr>
+
+        <tr height=6 valign="TOP" align="RIGHT" nowrap 
+          		bgcolor="#B2D3F5"
+          > 
+          <td align="CENTER" valign="top" class="Text" style="border-right:solid 2px #0056A2;"><a href="BoardAcross.asp?qboard=008.01..2550" target="_blank">8&nbsp;</a></td>
+          <td align="CENTER" valign="top" class="Text" >
+<a href="#" class="tooltip">3NT
+        <span><table><tr align="center"><td><b>West</b></td><td><b>North</b></td><td><b>East</b></td><td><b>South</b></td></tr><tr  align="center"><td>Pass</td><td>Pass</td><td>Pass</td><td>1<font size="4">&clubs;</font></td></tr><tr align="center"><td>Pass</td><td>1<font size="4">&spades;</font></td><td>Pass</td><td>3NT</td></tr><tr align="center"><td>Pass</td><td>Pass</td><td>Pass</td><td> </table></span>
+</td>
+          <td align="CENTER" valign="top" class="Text" >S&nbsp;</td>
+          <td align="CENTER" valign="top" class="Text" >
+          <font color="#C01616" face="Arial, Helvetica, sans-serif">&hearts;</font>2 
+          
+          
+          &nbsp;</td>
+          <td align="CENTER" valign="top" class="Text" ><a href="PlayDetails.asp?qboard=008.01..2550&qtournid=2550&qmatchid=153334" target="_blank">11&nbsp;</a></td>
+          <td align="CENTER" valign="top" class="Text" ><b>460&nbsp;</b></td>
+          <td align="CENTER" valign="top" class="Text"  style="border-right:solid 2px #0056A2;"><b>&nbsp;</b></td>
+          <td align="CENTER" valign="top" class="Text"  >
+<a href="#" class="tooltip">3NT
+        <span><table><tr align="center"><td><b>West</b></td><td><b>North</b></td><td><b>East</b></td><td><b>South</b></td></tr><tr  align="center"><td>Pass</td><td>Pass</td><td>1<font color="#C01616" size="4">&diams;</font></td><td>x</td></tr><tr align="center"><td>Pass</td><td>1<font size="4">&spades;</font></td><td>Pass</td><td>2<font color="#C01616" size="4">&diams;</font></td></tr><tr align="center"><td>Pass</td><td>3<font size="4">&spades;</font></td><td>Pass</td><td>3NT</td></tr><tr align="center"><td>Pass</td><td>Pass</td><td>Pass</td><td> </table></span>
+</td>
+          <td align="CENTER" valign="top" class="Text" >S&nbsp;</td>
+          <td align="CENTER" valign="top" class="Text">
+                    <font color="#C01616" face="Arial, Helvetica, sans-serif">&diams;</font>2 
+
+          
+          
+          &nbsp;</td>
+          <td align="CENTER" valign="top" class="Text" ><a href="PlayDetails.asp?qboard=008.01..2550&qtournid=2550&qmatchid=153334" target="_blank">10&nbsp;</a></td>
+          <td align="CENTER" valign="top" class="Text" ><b>430&nbsp;</b></td>
+          <td align="CENTER" valign="top" class="Text"  style="border-right:solid 2px #0056A2;"><b>&nbsp;</b></td>
+          <td align="CENTER" valign="top" class="Text" class="Text" ><font color="#0056a2"><b>1&nbsp;</b></font></td>
+          <td align="CENTER" valign="top" class="Text" class="Text"><font color="#0056a2"><b>&nbsp;</b></font></td>
+        </tr>
+
+        <tr height=6 valign="TOP" align="RIGHT" nowrap > 
+          <td align="CENTER" valign="top" class="Text" style="border-right:solid 2px #0056A2;"><a href="BoardAcross.asp?qboard=009.01..2550" target="_blank">9&nbsp;</a></td>
+          <td align="CENTER" valign="top" class="Text" >
+<a href="#" class="tooltip">4<font color="#C01616" face="Arial, Helvetica, sans-serif">&hearts;</font>
+        <span><table><tr align="center"><td><b>West</b></td><td><b>North</b></td><td><b>East</b></td><td><b>South</b></td></tr><tr  align="center"><td>-</td><td>4<font color="#C01616" size="4">&hearts;</font></td><td>Pass</td><td>Pass</td></tr><tr align="center"><td>Pass</td><td> </table></span>
+</td>
+          <td align="CENTER" valign="top" class="Text" >N&nbsp;</td>
+          <td align="CENTER" valign="top" class="Text" >
+          <font color="#C01616" face="Arial, Helvetica, sans-serif">&diams;</font>K 
+          
+          
+          &nbsp;</td>
+          <td align="CENTER" valign="top" class="Text" ><a href="PlayDetails.asp?qboard=009.01..2550&qtournid=2550&qmatchid=153334" target="_blank">12&nbsp;</a></td>
+          <td align="CENTER" valign="top" class="Text" ><b>480&nbsp;</b></td>
+          <td align="CENTER" valign="top" class="Text"  style="border-right:solid 2px #0056A2;"><b>&nbsp;</b></td>
+          <td align="CENTER" valign="top" class="Text"  >
+<a href="#" class="tooltip">4<font color="#C01616" face="Arial, Helvetica, sans-serif">&hearts;</font>
+        <span><table><tr align="center"><td><b>West</b></td><td><b>North</b></td><td><b>East</b></td><td><b>South</b></td></tr><tr  align="center"><td>-</td><td>3<font color="#C01616" size="4">&hearts;</font></td><td>Pass</td><td>4<font color="#C01616" size="4">&hearts;</font></td></tr><tr align="center"><td>Pass</td><td>Pass</td><td>Pass</td><td> </table></span>
+</td>
+          <td align="CENTER" valign="top" class="Text" >N&nbsp;</td>
+          <td align="CENTER" valign="top" class="Text">
+                    <font color="#C01616" face="Arial, Helvetica, sans-serif">&diams;</font>K 
+
+          
+          
+          &nbsp;</td>
+          <td align="CENTER" valign="top" class="Text" ><a href="PlayDetails.asp?qboard=009.01..2550&qtournid=2550&qmatchid=153334" target="_blank">12&nbsp;</a></td>
+          <td align="CENTER" valign="top" class="Text" ><b>480&nbsp;</b></td>
+          <td align="CENTER" valign="top" class="Text"  style="border-right:solid 2px #0056A2;"><b>&nbsp;</b></td>
+          <td align="CENTER" valign="top" class="Text" class="Text" ><font color="#0056a2"><b>&nbsp;</b></font></td>
+          <td align="CENTER" valign="top" class="Text" class="Text"><font color="#0056a2"><b>&nbsp;</b></font></td>
+        </tr>
+
+        <tr height=6 valign="TOP" align="RIGHT" nowrap 
+          		bgcolor="#B2D3F5"
+          > 
+          <td align="CENTER" valign="top" class="Text" style="border-right:solid 2px #0056A2;"><a href="BoardAcross.asp?qboard=010.01..2550" target="_blank">10&nbsp;</a></td>
+          <td align="CENTER" valign="top" class="Text" >
+<a href="#" class="tooltip">4<font color="#C01616" face="Arial, Helvetica, sans-serif">&hearts;</font>
+        <span><table><tr align="center"><td><b>West</b></td><td><b>North</b></td><td><b>East</b></td><td><b>South</b></td></tr><tr  align="center"><td>-</td><td>-</td><td>Pass</td><td>1<font size="4">&clubs;</font></td></tr><tr align="center"><td>Pass</td><td>1<font color="#C01616" size="4">&diams;</font></td><td>Pass</td><td>3<font color="#C01616" size="4">&hearts;</font></td></tr><tr align="center"><td>Pass</td><td>4<font color="#C01616" size="4">&hearts;</font></td><td>Pass</td><td>Pass</td></tr><tr align="center"><td>Pass</td><td> </table></span>
+</td>
+          <td align="CENTER" valign="top" class="Text" >S&nbsp;</td>
+          <td align="CENTER" valign="top" class="Text" >
+          <font face="Arial, Helvetica, sans-serif">&spades;</font>3 
+          
+          
+          &nbsp;</td>
+          <td align="CENTER" valign="top" class="Text" ><a href="PlayDetails.asp?qboard=010.01..2550&qtournid=2550&qmatchid=153334" target="_blank">10&nbsp;</a></td>
+          <td align="CENTER" valign="top" class="Text" ><b>620&nbsp;</b></td>
+          <td align="CENTER" valign="top" class="Text"  style="border-right:solid 2px #0056A2;"><b>&nbsp;</b></td>
+          <td align="CENTER" valign="top" class="Text"  >
+<a href="#" class="tooltip">4<font color="#C01616" face="Arial, Helvetica, sans-serif">&hearts;</font>
+        <span><table><tr align="center"><td><b>West</b></td><td><b>North</b></td><td><b>East</b></td><td><b>South</b></td></tr><tr  align="center"><td>-</td><td>-</td><td>Pass</td><td>1<font size="4">&clubs;</font></td></tr><tr align="center"><td>Pass</td><td>1<font color="#C01616" size="4">&hearts;</font></td><td>Pass</td><td>4<font color="#C01616" size="4">&hearts;</font></td></tr><tr align="center"><td>Pass</td><td>Pass</td><td>Pass</td><td> </table></span>
+</td>
+          <td align="CENTER" valign="top" class="Text" >N&nbsp;</td>
+          <td align="CENTER" valign="top" class="Text">
+                    <font face="Arial, Helvetica, sans-serif">&spades;</font>T 
+
+          
+          
+          &nbsp;</td>
+          <td align="CENTER" valign="top" class="Text" ><a href="PlayDetails.asp?qboard=010.01..2550&qtournid=2550&qmatchid=153334" target="_blank">10&nbsp;</a></td>
+          <td align="CENTER" valign="top" class="Text" ><b>620&nbsp;</b></td>
+          <td align="CENTER" valign="top" class="Text"  style="border-right:solid 2px #0056A2;"><b>&nbsp;</b></td>
+          <td align="CENTER" valign="top" class="Text" class="Text" ><font color="#0056a2"><b>&nbsp;</b></font></td>
+          <td align="CENTER" valign="top" class="Text" class="Text"><font color="#0056a2"><b>&nbsp;</b></font></td>
+        </tr>
+
+        <tr height=6 valign="TOP" align="RIGHT" nowrap > 
+          <td align="CENTER" valign="top" class="Text" style="border-right:solid 2px #0056A2;"><a href="BoardAcross.asp?qboard=011.01..2550" target="_blank">11&nbsp;</a></td>
+          <td align="CENTER" valign="top" class="Text" >
+<a href="#" class="tooltip">5<font color="#C01616" face="Arial, Helvetica, sans-serif">&diams;</font>
+        <span><table><tr align="center"><td><b>West</b></td><td><b>North</b></td><td><b>East</b></td><td><b>South</b></td></tr><tr  align="center"><td>-</td><td>-</td><td>-</td><td>Pass</td></tr><tr align="center"><td>1NT</td><td>2<font color="#C01616" size="4">&hearts;</font></td><td>3<font color="#C01616" size="4">&hearts;</font></td><td>x</td></tr><tr align="center"><td>Pass</td><td>Pass</td><td>4<font color="#C01616" size="4">&diams;</font></td><td>Pass</td></tr><tr align="center"><td>5<font color="#C01616" size="4">&diams;</font></td><td>Pass</td><td>Pass</td><td>Pass</td></tr><tr align="center"><td> </table></span>
+</td>
+          <td align="CENTER" valign="top" class="Text" >E&nbsp;</td>
+          <td align="CENTER" valign="top" class="Text" >
+          <font color="#C01616" face="Arial, Helvetica, sans-serif">&hearts;</font>A 
+          
+          
+          &nbsp;</td>
+          <td align="CENTER" valign="top" class="Text" ><a href="PlayDetails.asp?qboard=011.01..2550&qtournid=2550&qmatchid=153334" target="_blank">11&nbsp;</a></td>
+          <td align="CENTER" valign="top" class="Text" ><b>&nbsp;</b></td>
+          <td align="CENTER" valign="top" class="Text"  style="border-right:solid 2px #0056A2;"><b>400&nbsp;</b></td>
+          <td align="CENTER" valign="top" class="Text"  >
+<a href="#" class="tooltip">3NT
+        <span><table><tr align="center"><td><b>West</b></td><td><b>North</b></td><td><b>East</b></td><td><b>South</b></td></tr><tr  align="center"><td>-</td><td>-</td><td>-</td><td>Pass</td></tr><tr align="center"><td>1NT</td><td>Pass</td><td>2<font color="#C01616" size="4">&hearts;</font></td><td>Pass</td></tr><tr align="center"><td>2<font size="4">&spades;</font></td><td>Pass</td><td>3<font color="#C01616" size="4">&diams;</font></td><td>Pass</td></tr><tr align="center"><td>3<font color="#C01616" size="4">&hearts;</font></td><td>Pass</td><td>3NT</td><td>Pass</td></tr><tr align="center"><td>Pass</td><td>Pass</td><td> </table></span>
+</td>
+          <td align="CENTER" valign="top" class="Text" >W&nbsp;</td>
+          <td align="CENTER" valign="top" class="Text">
+                    <font face="Arial, Helvetica, sans-serif">&clubs;</font>4 
+
+          
+          
+          &nbsp;</td>
+          <td align="CENTER" valign="top" class="Text" ><a href="PlayDetails.asp?qboard=011.01..2550&qtournid=2550&qmatchid=153334" target="_blank">10&nbsp;</a></td>
+          <td align="CENTER" valign="top" class="Text" ><b>&nbsp;</b></td>
+          <td align="CENTER" valign="top" class="Text"  style="border-right:solid 2px #0056A2;"><b>430&nbsp;</b></td>
+          <td align="CENTER" valign="top" class="Text" class="Text" ><font color="#0056a2"><b>1&nbsp;</b></font></td>
+          <td align="CENTER" valign="top" class="Text" class="Text"><font color="#0056a2"><b>&nbsp;</b></font></td>
+        </tr>
+
+        <tr height=6 valign="TOP" align="RIGHT" nowrap 
+          		bgcolor="#B2D3F5"
+          > 
+          <td align="CENTER" valign="top" class="Text" style="border-right:solid 2px #0056A2;"><a href="BoardAcross.asp?qboard=012.01..2550" target="_blank">12&nbsp;</a></td>
+          <td align="CENTER" valign="top" class="Text" >
+<a href="#" class="tooltip">5<font face="Arial, Helvetica, sans-serif">&spades;</font>
+        <span><table><tr align="center"><td><b>West</b></td><td><b>North</b></td><td><b>East</b></td><td><b>South</b></td></tr><tr  align="center"><td>2<font color="#C01616" size="4">&hearts;</font></td><td>Pass</td><td>2<font size="4">&spades;</font></td><td>Pass</td></tr><tr align="center"><td>3<font color="#C01616" size="4">&hearts;</font></td><td>Pass</td><td>4NT</td><td>Pass</td></tr><tr align="center"><td>5<font color="#C01616" size="4">&diams;</font></td><td>Pass</td><td>5<font size="4">&spades;</font></td><td>Pass</td></tr><tr align="center"><td>Pass</td><td>Pass</td><td> </table></span>
+</td>
+          <td align="CENTER" valign="top" class="Text" >E&nbsp;</td>
+          <td align="CENTER" valign="top" class="Text" >
+          <font face="Arial, Helvetica, sans-serif">&clubs;</font>T 
+          
+          
+          &nbsp;</td>
+          <td align="CENTER" valign="top" class="Text" ><a href="PlayDetails.asp?qboard=012.01..2550&qtournid=2550&qmatchid=153334" target="_blank">10&nbsp;</a></td>
+          <td align="CENTER" valign="top" class="Text" ><b>50&nbsp;</b></td>
+          <td align="CENTER" valign="top" class="Text"  style="border-right:solid 2px #0056A2;"><b>&nbsp;</b></td>
+          <td align="CENTER" valign="top" class="Text"  >
+<a href="#" class="tooltip">4NT
+        <span><table><tr align="center"><td><b>West</b></td><td><b>North</b></td><td><b>East</b></td><td><b>South</b></td></tr><tr  align="center"><td>1<font color="#C01616" size="4">&hearts;</font></td><td>Pass</td><td>1<font size="4">&spades;</font></td><td>Pass</td></tr><tr align="center"><td>2<font color="#C01616" size="4">&hearts;</font></td><td>Pass</td><td>3<font size="4">&clubs;</font></td><td>Pass</td></tr><tr align="center"><td>3NT</td><td>Pass</td><td>4NT</td><td>Pass</td></tr><tr align="center"><td>Pass</td><td>Pass</td><td> </table></span>
+</td>
+          <td align="CENTER" valign="top" class="Text" >W&nbsp;</td>
+          <td align="CENTER" valign="top" class="Text">
+                    <font color="#C01616" face="Arial, Helvetica, sans-serif">&diams;</font>8 
+
+          
+          
+          &nbsp;</td>
+          <td align="CENTER" valign="top" class="Text" ><a href="PlayDetails.asp?qboard=012.01..2550&qtournid=2550&qmatchid=153334" target="_blank">11&nbsp;</a></td>
+          <td align="CENTER" valign="top" class="Text" ><b>&nbsp;</b></td>
+          <td align="CENTER" valign="top" class="Text"  style="border-right:solid 2px #0056A2;"><b>460&nbsp;</b></td>
+          <td align="CENTER" valign="top" class="Text" class="Text" ><font color="#0056a2"><b>11&nbsp;</b></font></td>
+          <td align="CENTER" valign="top" class="Text" class="Text"><font color="#0056a2"><b>&nbsp;</b></font></td>
+        </tr>
+
+        <tr height=6 valign="TOP" align="RIGHT" nowrap > 
+          <td align="CENTER" valign="top" class="Text" style="border-right:solid 2px #0056A2;"><a href="BoardAcross.asp?qboard=013.01..2550" target="_blank">13&nbsp;</a></td>
+          <td align="CENTER" valign="top" class="Text" >
+<a href="#" class="tooltip">3<font color="#C01616" face="Arial, Helvetica, sans-serif">&diams;</font>
+        <span><table><tr align="center"><td><b>West</b></td><td><b>North</b></td><td><b>East</b></td><td><b>South</b></td></tr><tr  align="center"><td>-</td><td>2<font color="#C01616" size="4">&diams;</font></td><td>Pass</td><td>3<font color="#C01616" size="4">&diams;</font></td></tr><tr align="center"><td>Pass</td><td>Pass</td><td>Pass</td><td> </table></span>
+</td>
+          <td align="CENTER" valign="top" class="Text" >N&nbsp;</td>
+          <td align="CENTER" valign="top" class="Text" >
+          <font face="Arial, Helvetica, sans-serif">&clubs;</font>A 
+          
+          
+          &nbsp;</td>
+          <td align="CENTER" valign="top" class="Text" ><a href="PlayDetails.asp?qboard=013.01..2550&qtournid=2550&qmatchid=153334" target="_blank">9&nbsp;</a></td>
+          <td align="CENTER" valign="top" class="Text" ><b>110&nbsp;</b></td>
+          <td align="CENTER" valign="top" class="Text"  style="border-right:solid 2px #0056A2;"><b>&nbsp;</b></td>
+          <td align="CENTER" valign="top" class="Text"  >
+<a href="#" class="tooltip">2<font color="#C01616" face="Arial, Helvetica, sans-serif">&hearts;</font>
+        <span><table><tr align="center"><td><b>West</b></td><td><b>North</b></td><td><b>East</b></td><td><b>South</b></td></tr><tr  align="center"><td>-</td><td>Pass</td><td>Pass</td><td>1NT</td></tr><tr align="center"><td>Pass</td><td>Pass</td><td>x</td><td>Pass</td></tr><tr align="center"><td>2<font color="#C01616" size="4">&hearts;</font></td><td>Pass</td><td>Pass</td><td>Pass</td></tr><tr align="center"><td> </table></span>
+</td>
+          <td align="CENTER" valign="top" class="Text" >W&nbsp;</td>
+          <td align="CENTER" valign="top" class="Text">
+                    <font face="Arial, Helvetica, sans-serif">&clubs;</font>K 
+
+          
+          
+          &nbsp;</td>
+          <td align="CENTER" valign="top" class="Text" ><a href="PlayDetails.asp?qboard=013.01..2550&qtournid=2550&qmatchid=153334" target="_blank">9&nbsp;</a></td>
+          <td align="CENTER" valign="top" class="Text" ><b>&nbsp;</b></td>
+          <td align="CENTER" valign="top" class="Text"  style="border-right:solid 2px #0056A2;"><b>140&nbsp;</b></td>
+          <td align="CENTER" valign="top" class="Text" class="Text" ><font color="#0056a2"><b>6&nbsp;</b></font></td>
+          <td align="CENTER" valign="top" class="Text" class="Text"><font color="#0056a2"><b>&nbsp;</b></font></td>
+        </tr>
+
+        <tr height=6 valign="TOP" align="RIGHT" nowrap 
+          		bgcolor="#B2D3F5"
+          > 
+          <td align="CENTER" valign="top" class="Text" style="border-right:solid 2px #0056A2;"><a href="BoardAcross.asp?qboard=014.01..2550" target="_blank">14&nbsp;</a></td>
+          <td align="CENTER" valign="top" class="Text" >
+<a href="#" class="tooltip">3NT
+        <span><table><tr align="center"><td><b>West</b></td><td><b>North</b></td><td><b>East</b></td><td><b>South</b></td></tr><tr  align="center"><td>-</td><td>-</td><td>1<font size="4">&clubs;</font></td><td>1NT</td></tr><tr align="center"><td>Pass</td><td>3NT</td><td>Pass</td><td>Pass</td></tr><tr align="center"><td>Pass</td><td> </table></span>
+</td>
+          <td align="CENTER" valign="top" class="Text" >S&nbsp;</td>
+          <td align="CENTER" valign="top" class="Text" >
+          <font color="#C01616" face="Arial, Helvetica, sans-serif">&diams;</font>J 
+          
+          
+          &nbsp;</td>
+          <td align="CENTER" valign="top" class="Text" ><a href="PlayDetails.asp?qboard=014.01..2550&qtournid=2550&qmatchid=153334" target="_blank">10&nbsp;</a></td>
+          <td align="CENTER" valign="top" class="Text" ><b>430&nbsp;</b></td>
+          <td align="CENTER" valign="top" class="Text"  style="border-right:solid 2px #0056A2;"><b>&nbsp;</b></td>
+          <td align="CENTER" valign="top" class="Text"  >
+<a href="#" class="tooltip">4<font color="#C01616" face="Arial, Helvetica, sans-serif">&hearts;</font>
+        <span><table><tr align="center"><td><b>West</b></td><td><b>North</b></td><td><b>East</b></td><td><b>South</b></td></tr><tr  align="center"><td>-</td><td>-</td><td>1<font size="4">&clubs;</font></td><td>Pass</td></tr><tr align="center"><td>1<font color="#C01616" size="4">&diams;</font></td><td>1<font color="#C01616" size="4">&hearts;</font></td><td>Pass</td><td>2<font size="4">&clubs;</font></td></tr><tr align="center"><td>Pass</td><td>4<font color="#C01616" size="4">&hearts;</font></td><td>Pass</td><td>Pass</td></tr><tr align="center"><td>Pass</td><td> </table></span>
+</td>
+          <td align="CENTER" valign="top" class="Text" >N&nbsp;</td>
+          <td align="CENTER" valign="top" class="Text">
+                    <font face="Arial, Helvetica, sans-serif">&spades;</font>A 
+
+          
+          
+          &nbsp;</td>
+          <td align="CENTER" valign="top" class="Text" ><a href="PlayDetails.asp?qboard=014.01..2550&qtournid=2550&qmatchid=153334" target="_blank">10&nbsp;</a></td>
+          <td align="CENTER" valign="top" class="Text" ><b>420&nbsp;</b></td>
+          <td align="CENTER" valign="top" class="Text"  style="border-right:solid 2px #0056A2;"><b>&nbsp;</b></td>
+          <td align="CENTER" valign="top" class="Text" class="Text" ><font color="#0056a2"><b>&nbsp;</b></font></td>
+          <td align="CENTER" valign="top" class="Text" class="Text"><font color="#0056a2"><b>&nbsp;</b></font></td>
+        </tr>
+
+</td></tr></table>
+<tr align="Center"><td colspan="15">
+              <p align="left" class="TextSmall"><font size="2" class="TextSmall">&#8226; For 
+                the team record, click on the team name.<br>
+                &#8226; For all the results of a specific board click on the board number.
+								<br>&#8226; For bidding information for a specific board, hover (or tap) on the contract.
+								
+
+
+
+<!--<br>&#8226; For a printer friendly version of bidding and play information for all boards of the lineup and the score card of the match, click 
+<a href="../PDFBidPlay/1_1_RR_2550.pdf" target="_blank">here</a>.-->
+
+                </font>
+                
+                 
+                	</p>
+
+              <table width="120" border="1" cellspacing="0" cellpadding="0" bordercolor="#0056a2">
+                <tr> 
+          <td align="center"><a href="javascript:window.close()"><font color="#000000" class="TextSmall">Close 
+        Window</font></a></td>
+                </tr>
+              </table>
+              <br>
+            </center>
+            </td>
+    </table></td>
+</table>
+  
+      
+    </td>
+  </tr>
+</table>
+</body>
+</html>
