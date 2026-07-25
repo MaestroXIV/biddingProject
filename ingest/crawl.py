@@ -36,9 +36,18 @@ def crawl(t: Tournament, fetcher: Fetcher) -> dict:
             bd_url = f"{t.base}BoardDetails.asp?qmatchid={m.ext_match_id}"
             fetcher.get(bd_url, cache_path(t, f"boarddetails_{m.ext_match_id}.html"))
             counts["boarddetails"] += 1
+        # handsacross is absent on some older microsites -- don't let a 404 kill
+        # the crawl (deals can fall back to BoardAcross; SPEC 4.2 / 8.6).
         ha_url = f"{t.base}handsacross.asp?qtournid={t.tournid}&qround={rnd}"
-        fetcher.get(ha_url, cache_path(t, f"handsacross_r{rnd}.html"))
-        counts["handsacross"] += 1
+        try:
+            fetcher.get(ha_url, cache_path(t, f"handsacross_r{rnd}.html"))
+            counts["handsacross"] += 1
+        except Exception as e:
+            counts.setdefault("handsacross_missing", 0)
+            counts["handsacross_missing"] += 1
+            if counts["handsacross_missing"] == 1:
+                print(f"[{t.key}] handsacross missing ({e.__class__.__name__}); "
+                      "continuing without it", flush=True)
     return counts
 
 
@@ -47,8 +56,12 @@ def main(keys: list[str]) -> None:
         for key in keys:
             t = TOURNAMENTS[key]
             print(f"=== crawling {t.key} ({t.site} {t.tournid}) ===", flush=True)
-            counts = crawl(t, fetcher)
-            print(f"=== {t.key} done: {counts} ===", flush=True)
+            try:
+                counts = crawl(t, fetcher)
+                print(f"=== {t.key} done: {counts} ===", flush=True)
+            except Exception as e:
+                print(f"=== {t.key} FAILED: {e.__class__.__name__}: {e} ===",
+                      flush=True)
 
 
 if __name__ == "__main__":

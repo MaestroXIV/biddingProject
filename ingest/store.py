@@ -137,7 +137,12 @@ def store_tournament(conn: sqlite3.Connection, t: Tournament) -> dict:
             bd_file = cache_path(t, f"boarddetails_{m.ext_match_id}.html")
             if not bd_file.exists():
                 continue
-            bd = parse.parse_boarddetails(bd_file.read_bytes())
+            try:
+                bd = parse.parse_boarddetails(bd_file.read_bytes())
+            except Exception as e:      # unrecognised page variant (SPEC 8.6)
+                counts.setdefault("bad_matches", 0)
+                counts["bad_matches"] += 1
+                continue
             for room, seats in (("Open", bd.seating.open),
                                 ("Closed", bd.seating.closed)):
                 for seat, name in seats.items():

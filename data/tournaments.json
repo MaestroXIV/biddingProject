@@ -25,5 +25,86 @@
     "name": "Wuhan Cup 2025",
     "year": 2025,
     "series": "Wuhan Cup"
+  },
+  {
+    "key": "eur24_open",
+    "site": "EBL",
+    "base": "https://db.eurobridge.org/repository/competitions/24Herning/microsite/Asp/",
+    "tournid": 2410,
+    "name": "European Open Teams 2024",
+    "year": 2024,
+    "series": "Open Teams"
+  },
+  {
+    "key": "eur24_women",
+    "site": "EBL",
+    "base": "https://db.eurobridge.org/repository/competitions/24Herning/microsite/Asp/",
+    "tournid": 2411,
+    "name": "European Women Teams 2024",
+    "year": 2024,
+    "series": "Women Teams"
+  },
+  {
+    "key": "eur24_sr",
+    "site": "EBL",
+    "base": "https://db.eurobridge.org/repository/competitions/24Herning/microsite/Asp/",
+    "tournid": 2412,
+    "name": "European Seniors Teams 2024",
+    "year": 2024,
+    "series": "Seniors Teams"
+  },
+  {
+    "key": "eur24_mixed",
+    "site": "EBL",
+    "base": "https://db.eurobridge.org/repository/competitions/24Herning/microsite/Asp/",
+    "tournid": 2413,
+    "name": "European Mixed Teams 2024",
+    "year": 2024,
+    "series": "Mixed Teams"
+  },
+  {
+    "key": "vel_u26",
+    "site": "WBF",
+    "base": "http://db.worldbridge.org/Repository/tourn/Veldhoven.23/microSite/Asp/",
+    "tournid": 2340,
+    "name": "World Youth U26 Teams 2023",
+    "year": 2023,
+    "series": "U26 Teams"
+  },
+  {
+    "key": "vel_u21",
+    "site": "WBF",
+    "base": "http://db.worldbridge.org/Repository/tourn/Veldhoven.23/microSite/Asp/",
+    "tournid": 2341,
+    "name": "World Youth U21 Teams 2023",
+    "year": 2023,
+    "series": "U21 Teams"
+  },
+  {
+    "key": "vel_u26w",
+    "site": "WBF",
+    "base": "http://db.worldbridge.org/Repository/tourn/Veldhoven.23/microSite/Asp/",
+    "tournid": 2342,
+    "name": "World Youth U26W Teams 2023",
+    "year": 2023,
+    "series": "U26W Teams"
+  },
+  {
+    "key": "vel_u16",
+    "site": "WBF",
+    "base": "http://db.worldbridge.org/Repository/tourn/Veldhoven.23/microSite/Asp/",
+    "tournid": 2343,
+    "name": "World Youth U16 Teams 2023",
+    "year": 2023,
+    "series": "U16 Teams"
+  },
+  {
+    "key": "vel_u31",
+    "site": "WBF",
+    "base": "http://db.worldbridge.org/Repository/tourn/Veldhoven.23/microSite/Asp/",
+    "tournid": 2344,
+    "name": "World Youth U31 Teams 2023",
+    "year": 2023,
+    "series": "U31 Teams"
   }
 ]
