@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% from "_grid.html" import opening_table with context %}
+{% block title %}{% if pair %}{{ pair.name1 }} – {{ pair.name2 }}{% else %}Pair{% endif %} — BoardBase{% endblock %}
+{% block body %}
+<h2>Pair dashboard</h2>
+<form class="filters mini" method="get" action="/pair">
+  <div class="grid3">
+    <label>Player 1 <input name="p1" value="{{ pair.n1_in if pair else p1 }}" placeholder="KALITA"></label>
+    <label>Player 2 <input name="p2" value="{{ pair.n2_in if pair else p2 }}" placeholder="KLUKOWSKI"></label>
+    <label>Tournament
+      <select name="tournament"><option value="">all</option>
+        {% for t in tournaments %}<option value="{{ t['slug'] }}" {{ 'selected' if tournament==t['slug'] }}>{{ t['name'] }}</option>{% endfor %}
+      </select>
+    </label>
+  </div>
+  <div class="actions"><button type="submit">Show</button></div>
+</form>
+
+{% if not pair %}
+  <p class="hint">Enter both players' surnames to see their opening dashboard.</p>
+{% else %}
+<h3>{{ pair.name1 }} &nbsp;–&nbsp; {{ pair.name2 }}</h3>
+<p class="cmeta">
+  Opening bids by their side{{ ' at ' ~ tournament if tournament }}.
+  Each opening links into the <b>Sequence Explorer</b>.
+  · <a href="{{ pair_search }}">see all boards their side opened →</a>
+</p>
+
+{% if grid %}
+  {{ opening_table(grid, names, member_ids, POS, VULS, explore_for) }}
+{% else %}
+  <p class="hint">No openings found for this pair{{ ' at ' ~ tournament if tournament }}.</p>
+{% endif %}
+
+<p class="cmeta">Events: {% for e in events %}<a href="/pair?p1={{ pair.n1_in }}&p2={{ pair.n2_in }}&tournament={{ e['slug'] }}">{{ e['name'] }}</a>{{ '' if loop.last else ' · ' }}{% endfor %}</p>
+{% endif %}
+{% endblock %}

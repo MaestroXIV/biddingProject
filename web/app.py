@@ -92,6 +92,77 @@ def explore(request: Request):
     return templates.TemplateResponse(request, "explore.html", ctx)
 
 
+@app.get("/player", response_class=HTMLResponse)
+def player(request: Request):
+    name = (request.query_params.get("name") or "").strip()
+    tournament = (request.query_params.get("tournament") or "").strip()
+    conn = q.connect()
+    hit = q.resolve_one_player(conn, name)
+    if not hit:
+        ctx = {"request": request, "name": name, "player": None,
+               "tournaments": q.tournaments(conn)}
+        conn.close()
+        return templates.TemplateResponse(request, "player.html", ctx)
+    pid, canonical = hit
+    grid = q.opening_grid(conn, [pid], tournament=tournament)
+    base = {"player": canonical}
+    if tournament:
+        base["tournament"] = tournament
+
+    def explore_for(call):
+        return "/explore?" + urlencode({**base, "seq": call})
+    ctx = {
+        "request": request, "player": {"id": pid, "name": canonical},
+        "grid": grid, "names": {pid: canonical}, "tournament": tournament,
+        "events": q.player_events(conn, pid),
+        "partners": q.player_partners(conn, pid, tournament),
+        "explore_for": explore_for,
+        "boards_all": "/?" + urlencode(base),
+        "boards_opener": "/?" + urlencode({**base, "player_role": "opener"}),
+        "tournaments": q.tournaments(conn), "POS": q._POS, "VULS": q._VULS,
+    }
+    conn.close()
+    return templates.TemplateResponse(request, "player.html", ctx)
+
+
+@app.get("/pair", response_class=HTMLResponse)
+def pair(request: Request):
+    p = request.query_params
+    n1 = (p.get("p1") or "").strip()
+    n2 = (p.get("p2") or "").strip()
+    tournament = (p.get("tournament") or "").strip()
+    conn = q.connect()
+    h1 = q.resolve_one_player(conn, n1)
+    h2 = q.resolve_one_player(conn, n2)
+    if not (h1 and h2):
+        ctx = {"request": request, "p1": n1, "p2": n2, "pair": None,
+               "tournaments": q.tournaments(conn)}
+        conn.close()
+        return templates.TemplateResponse(request, "pair.html", ctx)
+    (id1, name1), (id2, name2) = h1, h2
+    key = q.pair_key_for(id1, id2)
+    grid = q.opening_grid(conn, [id1, id2], pair_key=key, tournament=tournament)
+    base = {"player": n1, "partner": n2, "pair_side": "opening"}
+    if tournament:
+        base["tournament"] = tournament
+
+    def explore_for(call):
+        return "/explore?" + urlencode({**base, "seq": call})
+    pair_search = "/?" + urlencode(base)
+    ctx = {
+        "request": request,
+        "pair": {"id1": id1, "id2": id2, "name1": name1, "name2": name2,
+                 "n1_in": n1, "n2_in": n2},
+        "grid": grid, "names": {id1: name1, id2: name2},
+        "member_ids": [id1, id2], "tournament": tournament,
+        "events": q.player_events(conn, id1),
+        "explore_for": explore_for, "pair_search": pair_search,
+        "tournaments": q.tournaments(conn), "POS": q._POS, "VULS": q._VULS,
+    }
+    conn.close()
+    return templates.TemplateResponse(request, "pair.html", ctx)
+
+
 @app.get("/deal/{deal_id}", response_class=HTMLResponse)
 def deal(request: Request, deal_id: int, opening_call: str = ""):
     conn = q.connect()

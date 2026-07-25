@@ -70,6 +70,27 @@ def test_uc6_situational_hcp(client):
     assert "Dbl" in r.text                          # a common action shows up
 
 
+def test_m4_pair_dashboard(client):
+    # SPEC 9 M4 DoD: K-K dashboard shows 34/27 opener split for 1C at Riga
+    import re
+    r = client.get("/pair?p1=KALITA&p2=KLUKOWSKI&tournament=riga")
+    assert r.status_code == 200
+    # each grid row: <td class="bcall">…call…</td><td class="bcount">total</td><td>m1</td><td>m2</td>
+    rows = re.findall(
+        r'<td class="bcall">(.*?)</td>\s*<td class="bcount">(\d+)</td>\s*'
+        r'<td>(\d+)</td>\s*<td>(\d+)</td>', r.text, re.S)
+    by_call = {re.sub(r"<[^>]+>", "", c).strip(): (t, a, b) for c, t, a, b in rows}
+    assert by_call["1♣"] == ("61", "34", "27")   # total, Kalita, Klukowski
+
+
+def test_m4_player_dashboard(client):
+    r = client.get("/player?name=KLUKOWSKI+Michal&tournament=riga")
+    assert r.status_code == 200
+    # use-case 5: one click to all boards played, and to boards as opener
+    assert 'player_role=opener' in r.text
+    assert "KALITA Jacek" in r.text            # partner listed
+
+
 def test_csv_export(client):
     r = client.get("/export.csv?tournament=riga&player=KLUKOWSKI&partner=KALITA"
                    "&pair_side=opening&opening_call=1C")

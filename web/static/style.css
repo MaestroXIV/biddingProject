@@ -77,3 +77,11 @@ table.facet th { background: #f2f5f8; font-size: 11px; text-transform: uppercase
 .facet .bpat { color: #555; font-variant-numeric: tabular-nums; }
 .facet .bsamp { color: #666; font-size: 12px; }
 code { background: #eef1f4; padding: 0 4px; border-radius: 3px; }
+
+/* dashboards */
+.filters.mini { padding: 10px; }
+.grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+table.grid td, table.grid th { text-align: center; }
+table.grid td.bcall { text-align: left; }
+table.grid .dim { color: #999; }
+h3 { margin: 12px 0 4px; } h4 { margin: 16px 0 4px; color: #333; }

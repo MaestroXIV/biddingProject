@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% from "_grid.html" import opening_table with context %}
+{% block title %}{% if player %}{{ player.name }}{% else %}Player{% endif %} — BoardBase{% endblock %}
+{% block body %}
+<h2>Player dashboard</h2>
+<form class="filters mini" method="get" action="/player">
+  <div class="grid3">
+    <label>Player <input name="name" value="{{ player.name if player else name }}" placeholder="KLUKOWSKI"></label>
+    <label>Tournament
+      <select name="tournament"><option value="">all</option>
+        {% for t in tournaments %}<option value="{{ t['slug'] }}" {{ 'selected' if tournament==t['slug'] }}>{{ t['name'] }}</option>{% endfor %}
+      </select>
+    </label>
+  </div>
+  <div class="actions"><button type="submit">Show</button></div>
+</form>
+
+{% if not player %}
+  <p class="hint">Enter a surname to see a player's opening dashboard.</p>
+{% else %}
+<h3>{{ player.name }}</h3>
+<p class="cmeta">
+  <a href="{{ boards_all }}">all boards played →</a> ·
+  <a href="{{ boards_opener }}">boards as opener →</a>
+</p>
+
+<h4>Openings (as opener{{ ', ' ~ tournament if tournament }})</h4>
+{% if grid %}
+  {{ opening_table(grid, names, [player.id], POS, VULS, explore_for) }}
+{% else %}
+  <p class="hint">No openings recorded.</p>
+{% endif %}
+
+<h4>Partners</h4>
+<p class="cmeta">
+  {% for p in partners %}
+    <a href="/pair?p1={{ player.name }}&p2={{ p.name }}{{ '&tournament=' ~ tournament if tournament }}">{{ p.name }}</a> <span class="dim">({{ p.n }})</span>{{ '' if loop.last else ' · ' }}
+  {% else %}—{% endfor %}
+</p>
+
+<p class="cmeta">Events: {% for e in events %}<a href="/player?name={{ player.name }}&tournament={{ e['slug'] }}">{{ e['name'] }}</a>{{ '' if loop.last else ' · ' }}{% endfor %}</p>
+{% endif %}
+{% endblock %}

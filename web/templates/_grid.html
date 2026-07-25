@@ -1,0 +1,21 @@
+{% macro opening_table(grid, names, member_ids, POS, VULS, explore_link) %}
+<table class="facet grid">
+  <thead><tr>
+    <th>opening</th><th>total</th>
+    {% for pid in member_ids %}<th>{{ names[pid].split(' ')[0]|title }}</th>{% endfor %}
+    {% for p in POS %}<th>{{ p }}{{ {1:'st',2:'nd',3:'rd',4:'th'}[p] }}</th>{% endfor %}
+    {% for v in VULS %}<th>{{ v }}</th>{% endfor %}
+  </tr></thead>
+  <tbody>
+  {% for g in grid %}
+    <tr>
+      <td class="bcall"><a href="{{ explore_link(g.call) }}">{{ g.call|call }}</a></td>
+      <td class="bcount">{{ g.total }}</td>
+      {% for pid in member_ids %}<td>{{ g.by_player.get(pid, 0) }}</td>{% endfor %}
+      {% for p in POS %}<td class="dim">{{ g.by_pos.get(p, 0) or '' }}</td>{% endfor %}
+      {% for v in VULS %}<td class="dim">{{ g.by_vul.get(v, 0) or '' }}</td>{% endfor %}
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endmacro %}

@@ -292,3 +292,105 @@ def explore(conn, f: dict, seq: str, next_hcp_min: str = "", next_hcp_max: str =
     return {"seq": seq, "seq_tokens": seq_tokens, "contested": contested,
             "matched": matched, "ended": ended, "facet_total": facet_total,
             "branches": out}
+
+
+# --- pair / player dashboards (SPEC 7.4) ------------------------------------
+
+def resolve_one_player(conn, name: str):
+    """Best single (id, canonical_name) for a name; prefers an exact alias."""
+    if not name.strip():
+        return None
+    row = conn.execute(
+        "SELECT p.id, p.canonical_name FROM player p JOIN player_alias a "
+        "ON a.player_id=p.id WHERE a.alias=? LIMIT 1", (name.strip(),)).fetchone()
+    if row:
+        return row["id"], row["canonical_name"]
+    row = conn.execute(
+        "SELECT p.id, p.canonical_name FROM player p JOIN player_alias a "
+        "ON a.player_id=p.id WHERE a.alias LIKE ? ORDER BY length(a.alias) LIMIT 1",
+        (f"%{name.strip()}%",)).fetchone()
+    return (row["id"], row["canonical_name"]) if row else None
+
+
+_POS = (1, 2, 3, 4)
+_VULS = ("none", "fav", "unfav", "both")
+
+
+def opening_grid(conn, opener_ids: list[int], pair_key: str | None = None,
+                 tournament: str = ""):
+    """Opening-call frequency split by position, vulnerability, and (for a pair)
+    which member opened. Returns rows sorted by total desc."""
+    joins = ("JOIN board_instance bi ON bi.id=a.board_instance_id "
+             "JOIN match m ON m.id=bi.match_id JOIN round r ON r.id=m.round_id "
+             "JOIN tournament t ON t.id=r.tournament_id")
+    conds = ["a.opening_call IS NOT NULL",
+             f"a.opener_player_id IN ({','.join('?'*len(opener_ids))})"]
+    params: list = list(opener_ids)
+    if pair_key:
+        joins += (" JOIN instance_side s ON s.board_instance_id=a.board_instance_id "
+                  "AND s.side=a.opening_side")
+        conds.append("s.pair_key=?")
+        params.append(pair_key)
+    if tournament:
+        conds.append("t.slug=?")
+        params.append(tournament)
+    sql = (f"SELECT a.opening_call AS call, a.opener_player_id AS pid, "
+           f"a.opener_rel_pos AS pos, a.vul_rel AS vul, COUNT(*) AS n "
+           f"FROM auction a {joins} WHERE {' AND '.join(conds)} "
+           f"GROUP BY call, pid, pos, vul")
+    grid: dict[str, dict] = {}
+    for r in conn.execute(sql, params):
+        g = grid.setdefault(r["call"], {
+            "call": r["call"], "total": 0,
+            "by_pos": {p: 0 for p in _POS}, "by_vul": {v: 0 for v in _VULS},
+            "by_player": {}})
+        g["total"] += r["n"]
+        g["by_pos"][r["pos"]] = g["by_pos"].get(r["pos"], 0) + r["n"]
+        if r["vul"]:
+            g["by_vul"][r["vul"]] = g["by_vul"].get(r["vul"], 0) + r["n"]
+        g["by_player"][r["pid"]] = g["by_player"].get(r["pid"], 0) + r["n"]
+    rows = sorted(grid.values(), key=lambda g: -g["total"])
+    return rows
+
+
+def player_events(conn, player_id: int):
+    return conn.execute("""
+        SELECT DISTINCT t.slug, t.name FROM seating se
+        JOIN match m ON m.id=se.match_id JOIN round r ON r.id=m.round_id
+        JOIN tournament t ON t.id=r.tournament_id WHERE se.player_id=?
+        ORDER BY t.id""", (player_id,)).fetchall()
+
+
+def player_partners(conn, player_id: int, tournament: str = ""):
+    cond = "(s.player_lo=? OR s.player_hi=?)"
+    params: list = [player_id, player_id]
+    join = ("JOIN board_instance bi ON bi.id=s.board_instance_id "
+            "JOIN match m ON m.id=bi.match_id JOIN round r ON r.id=m.round_id "
+            "JOIN tournament t ON t.id=r.tournament_id")
+    if tournament:
+        cond += " AND t.slug=?"
+        params.append(tournament)
+    rows = conn.execute(f"""
+        SELECT CASE WHEN s.player_lo=? THEN s.player_hi ELSE s.player_lo END AS partner,
+               COUNT(*) AS n
+        FROM instance_side s {join} WHERE {cond}
+        GROUP BY partner ORDER BY n DESC""",
+        [player_id] + params).fetchall()
+    out = []
+    for r in rows:
+        nm = conn.execute("SELECT canonical_name FROM player WHERE id=?",
+                          (r["partner"],)).fetchone()
+        out.append({"id": r["partner"], "name": nm["canonical_name"] if nm else "?",
+                    "n": r["n"]})
+    return out
+
+
+def player_name(conn, player_id: int):
+    r = conn.execute("SELECT canonical_name FROM player WHERE id=?",
+                     (player_id,)).fetchone()
+    return r["canonical_name"] if r else None
+
+
+def pair_key_for(a_id: int, b_id: int) -> str:
+    lo, hi = sorted((a_id, b_id))
+    return f"{lo}-{hi}"
