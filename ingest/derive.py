@@ -37,6 +37,9 @@ def _canonical(calls: list[str], dealer: str, opener_idx: int, opening_side: str
             from_tokens.append(f"({call})")
             if call != "P":
                 competitive = True
+    # Trailing auction-ending passes are noise for a prefix key.
+    while unc_tokens and unc_tokens[-1] == "P":
+        unc_tokens.pop()
     unc = None if competitive else " ".join(unc_tokens)
     return " ".join(from_tokens), unc, int(competitive)
 

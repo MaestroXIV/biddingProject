@@ -2,6 +2,33 @@
 
 Running log of what the pages actually look like as we meet them (SPEC 8, 11.6).
 
+## M1 ingest results (2026-07-25)
+
+Both proving events crawled to `data/rawcache` and ingested. `bb stats`:
+
+| Tournament | rounds | matches | deals | instances | auctions |
+|---|---|---|---|---|---|
+| Riga 2026 (EBL 2620) | 29 | 435 | 464 | 13,920 | 13,920 |
+| Herning 2025 (WBF 2550) | 23 | 276 | 322 | 7,700 | 7,700 |
+
+- **Riga matches every §10 golden exactly** (29 / 435 / 464 / 13,920). Integrity
+  checks (52 cards/deal, opener=dealer-consistent, full seating per instance)
+  **all pass**.
+- **Kalita–Klukowski opened 1♣ on 61 Riga boards (Kalita 34, Klukowski 27)** —
+  exact §10 match; first instance R1 Closed West Klukowski. Validates the whole
+  chain (seating → player identity → pair key → opener derivation).
+- **New Herning full-event goldens** (were unmeasured in §10): **23 rounds,
+  12 matches/round (276), 14 boards/round → 322 deals, 7,700 instances.**
+  Riga is perfectly uniform (all 464 deals × 30 tables). Herning is uniform at
+  24 instances/deal (308 deals) except **14 deals in one round have 22** — one
+  match there is short two tables (a not-played/absent BoardDetails, a normal
+  real-world gap). 308×24 + 14×22 = 7,700. Integrity still passes.
+
+**Cross-tournament player identity works:** Kalita & Klukowski also play Herning
+(Bermuda Bowl), and exact-alias merge (SPEC 5) unifies them across events — so
+pair/opening queries must scope by tournament when reproducing a per-event
+golden. This is intended behaviour, not a bug.
+
 ## `handsacross.asp` — VERDICT (M0 probe, SPEC 8.1)
 
 **Confirmed: `handsacross.asp?qtournid=…&qround=N` returns every deal diagram
