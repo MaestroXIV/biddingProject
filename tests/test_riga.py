@@ -69,6 +69,9 @@ def test_roundteams():
     ids = {m.ext_match_id for m in rt.matches}
     assert {158726, 158739, 158729} <= ids
     assert rt.handsacross_href and rt.boardacrossfullround_href
+    # Switzerland v Croatia pairing (qmatchid 158726)
+    swi = next(m for m in rt.matches if m.ext_match_id == 158726)
+    assert {swi.home_team, swi.visiting_team} == {"SWITZERLAND", "CROATIA"}
 
 
 @missing(not BOARDDETAILS.exists(), reason="EBL fixture not fetched (SPEC 4.6 IP block)")
@@ -84,6 +87,11 @@ def test_boarddetails_seating():
         "E": "KALITA Jacek", "S": "KATUSIC Filip",
     }
     assert bd.n_tooltips == 32  # 16 boards x 2 rooms
+    # SPEC 10: closed-room board 4 auction begins with 1C (West opens)
+    cb4 = next(i for i in bd.instances
+               if i.board_no == 4 and i.room == "Closed")
+    assert cb4.auction.calls[0] == "1C"
+    assert cb4.auction.first_seat == "W"
 
 
 @missing(not HANDSACROSS.exists(), reason="EBL fixture not fetched (SPEC 4.6 IP block)")

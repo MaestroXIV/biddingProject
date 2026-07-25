@@ -245,6 +245,7 @@ class RoundMatch:
     visiting_team: str
     home_team_id: int | None
     visiting_team_id: int | None
+    table_no: int | None = None
 
 
 @dataclass
@@ -263,36 +264,45 @@ def _href(node: Node) -> str:
 def parse_roundteams(raw: bytes | str) -> RoundTeams:
     tree = HTMLParser(decode(raw))
     title = _ws(tree.css_first("body").text())[:120]
-    match_ids: list[int] = []
-    team_ids: list[int] = []
     handsacross = boardacross_full = None
     for a in tree.css("a"):
-        href = _href(a)
-        low = href.lower()
-        if "boarddetails.asp" in low:
-            m = re.search(r"qmatchid=(\d+)", href)
-            if m:
-                match_ids.append(int(m.group(1)))
-        elif "teamdetails.asp" in low:
-            m = re.search(r"qteamid=(\d+)", href)
-            if m:
-                team_ids.append(int(m.group(1)))
-        elif "handsacross" in low:
-            handsacross = href
+        low = _href(a).lower()
+        if "handsacross" in low:
+            handsacross = _href(a)
         elif "boardacrossfullround" in low:
-            boardacross_full = href
-    # match ids appear once per BoardDetails link; preserve order, dedup
+            boardacross_full = _href(a)
+
+    # A match row has exactly one BoardDetails link (its table number) and the
+    # two TeamDetails links right after it (home, then visiting).
+    matches: list[RoundMatch] = []
+    team_ids: set[int] = set()
     seen: set[int] = set()
-    ordered_matches = [m for m in match_ids if not (m in seen or seen.add(m))]
-    matches = [
-        RoundMatch(ext_match_id=mid, home_team="", visiting_team="",
-                   home_team_id=None, visiting_team_id=None)
-        for mid in ordered_matches
-    ]
+    for tr in tree.css("tr"):
+        bd = [a for a in tr.css("a") if "boarddetails.asp" in _href(a).lower()]
+        if len(bd) != 1:
+            continue
+        td = [a for a in tr.css("a") if "teamdetails.asp" in _href(a).lower()]
+        if len(td) < 2:
+            continue
+        mid = int(re.search(r"qmatchid=(\d+)", _href(bd[0])).group(1))
+        if mid in seen:
+            continue
+        seen.add(mid)
+        home, visiting = td[0], td[1]
+        hid = int(re.search(r"qteamid=(\d+)", _href(home)).group(1))
+        vid = int(re.search(r"qteamid=(\d+)", _href(visiting)).group(1))
+        team_ids.update((hid, vid))
+        table_no = _ws(bd[0].text())
+        matches.append(RoundMatch(
+            ext_match_id=mid,
+            home_team=_ws(home.text()), visiting_team=_ws(visiting.text()),
+            home_team_id=hid, visiting_team_id=vid,
+            table_no=int(table_no) if table_no.isdigit() else None,
+        ))
     return RoundTeams(
         title=title,
         matches=matches,
-        team_ids=sorted(set(team_ids)),
+        team_ids=sorted(team_ids),
         handsacross_href=handsacross,
         boardacrossfullround_href=boardacross_full,
     )
@@ -308,10 +318,24 @@ class Seating:
 
 
 @dataclass
+class Instance:
+    board_no: int
+    room: str                # 'Open' | 'Closed'
+    contract: str
+    declarer: str            # 'N'/'E'/'S'/'W' or ''
+    lead: str                # e.g. 'CA'; '' if none
+    tricks: int | None
+    score_ns: int | None
+    score_ew: int | None
+    auction: Auction
+
+
+@dataclass
 class BoardDetails:
     seating: Seating
     n_tooltips: int
     auctions: list[Auction]
+    instances: list[Instance]
 
 
 def parse_seating(tree: HTMLParser) -> Seating:
@@ -337,9 +361,71 @@ def parse_seating(tree: HTMLParser) -> Seating:
     return Seating(open=open_room, closed=closed_room)
 
 
+def _sibling_tds_after(td: Node) -> list[Node]:
+    out, n = [], td.next
+    while n is not None:
+        if n.tag == "td":
+            out.append(n)
+        n = n.next
+    return out
+
+
+def _cell_text(td: Node) -> str:
+    """Text of a td, excluding any nested tooltip span/table."""
+    sp = td.css_first("a.tooltip span")
+    t = td.text()
+    if sp is not None:
+        t = t.replace(sp.text(), "")
+    return _ws(t)
+
+
+def _to_int(s: str) -> int | None:
+    s = s.strip()
+    return int(s) if re.fullmatch(r"-?\d+", s) else None
+
+
+def _normalize_lead(s: str) -> str:
+    s = _ws(s)
+    if not s:
+        return ""
+    return "".join(SUIT_GLYPH.get(ch, ch) for ch in s)
+
+
 def parse_boarddetails(raw: bytes | str) -> BoardDetails:
     tree = HTMLParser(decode(raw))
     seating = parse_seating(tree)
     tips = tree.css("a.tooltip")
     auctions = [parse_auction(a) for a in tips]
-    return BoardDetails(seating=seating, n_tooltips=len(tips), auctions=auctions)
+
+    # Tooltips run open, closed, open, closed... The five tds immediately after
+    # each tooltip are [declarer, lead, tricks, NS, EW]; the open room's board
+    # number is the td just before it (read it -- Riga rounds use 1-16 OR 17-32).
+    instances: list[Instance] = []
+    for idx, tip in enumerate(tips):
+        td = tip.parent
+        room = "Open" if idx % 2 == 0 else "Closed"
+        board_no = 0
+        if room == "Open":
+            prev = td.prev
+            while prev is not None and prev.tag != "td":
+                prev = prev.prev
+            if prev is not None:
+                bn = _to_int(_cell_text(prev))
+                if bn is not None:
+                    board_no = bn
+        else:
+            board_no = instances[-1].board_no if instances else 0
+        cells = [_cell_text(x) for x in _sibling_tds_after(td)][:5]
+        cells += [""] * (5 - len(cells))
+        decl, lead, tricks, ns, ew = cells
+        instances.append(Instance(
+            board_no=board_no, room=room,
+            contract=_normalize_contract(tip.text().replace(
+                (tip.css_first("span").text() if tip.css_first("span") else ""), "")),
+            declarer=decl if decl in ("N", "E", "S", "W") else "",
+            lead=_normalize_lead(lead),
+            tricks=_to_int(tricks), score_ns=_to_int(ns), score_ew=_to_int(ew),
+            auction=auctions[idx],
+        ))
+    return BoardDetails(seating=seating, n_tooltips=len(tips),
+                        auctions=auctions, instances=instances)

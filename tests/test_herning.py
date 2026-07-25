@@ -58,6 +58,25 @@ def test_roundteams_matches_and_teams():
     assert len(rt.team_ids) == 24
 
 
+def test_roundteams_match_pairings():
+    rt = parse.parse_roundteams(read("roundteams_r1.html"))
+    m = rt.matches[0]
+    assert (m.table_no, m.ext_match_id) == (1, 153334)
+    assert (m.home_team, m.visiting_team) == ("AUSTRALIA", "TUNISIA")
+    assert (m.home_team_id, m.visiting_team_id) == (1016, 1021)
+
+
+def test_boarddetails_instances():
+    bd = parse.parse_boarddetails(read("boarddetails_153334.html"))
+    assert len(bd.instances) == bd.n_tooltips
+    b1 = [i for i in bd.instances if i.board_no == 1]
+    assert {i.room for i in b1} == {"Open", "Closed"}
+    op = next(i for i in b1 if i.room == "Open")
+    assert op.contract == "3H" and op.declarer == "E"
+    assert op.lead == "CA" and op.tricks == 9
+    assert op.score_ns is None and op.score_ew == 140
+
+
 def test_roundteams_bulk_links_present():
     rt = parse.parse_roundteams(read("roundteams_r1.html"))
     assert rt.handsacross_href and "handsacross" in rt.handsacross_href.lower()
