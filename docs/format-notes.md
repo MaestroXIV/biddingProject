@@ -40,20 +40,27 @@ the datacenter/cloud-IP block the spec anticipates: **this environment is not on
 a residential IP.** WBF (`db.worldbridge.org`, plain HTTP) is unaffected and
 returned 200 for all four Herning fixtures.
 
-Per SPEC 4.6 / 11.6 we do **not** try to circumvent this beyond honest headers.
-Consequence for M0: the four **Herning** fixtures are fetched and committed, and
-all their goldens pass. The four **Riga** fixtures could not be fetched here.
+**UPDATE (2026-07-25): it is not just the IP.** From Gregor's own residential
+Mac, `httpx` still gets a **403 whose body is the Cloudflare "Just a moment…"
+JavaScript challenge** (`just a moment` / `enable javascript` / `cloudflare`
+markers), even with a full browser-plausible header set. Only a real browser
+that executes the challenge JS gets through. Plain HTTP clients (`httpx`,
+`curl`) cannot fetch EBL at all right now. Per SPEC 4.6 / 11.6 we do **not**
+try to solve the challenge — that is circumvention.
 
-**To fetch the Riga fixtures**, run this once from Gregor's Mac (residential
-connection), which demonstrably works per the pre-study session:
+**How the Riga fixtures were actually obtained (M0):** opened each of the four
+URLs in a normal browser (challenge passes for real), then File → Save As →
+HTML-only into `tests/fixtures/riga/`. Committed. All 6 Riga goldens pass.
+`decode()` now tries UTF-8 first (browsers re-encode on save) then falls back to
+iso-8859-1; suit symbols are HTML entities so they survive either way.
 
-```
-python ingest/fetch_fixtures.py
-```
-
-It writes all eight fixtures (cache-first; the four Herning ones are already
-cached) into `tests/fixtures/`. The Riga golden tests in `tests/test_riga.py`
-skip while those files are absent and turn green automatically once present.
+**⚠ Consequence for M1 (EBL ingest, ~490 pages):** the `httpx`-based
+`fetch.py` works for WBF but **cannot fetch EBL** while this challenge is up.
+`fetch_fixtures.py` / `ingest --site EBL` will 403 on every page. Before M1 can
+ingest Riga we need one of: (a) a browser-driven fetch (e.g. Playwright, which
+runs the JS and yields real bytes), or (b) reuse a `cf_clearance` cookie copied
+from Gregor's solved browser session (fragile: ~30 min TTL, must match UA+IP).
+Flag to Gregor — this is a scope change to the fetch layer, not a parser issue.
 
 ## Auction / hand parsing — as specified (SPEC 4.3–4.5), verified on WBF
 
