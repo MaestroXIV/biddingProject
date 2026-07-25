@@ -106,5 +106,59 @@
     "name": "World Youth U31 Teams 2023",
     "year": 2023,
     "series": "U31 Teams"
+  },
+  {
+    "key": "prague26_open",
+    "site": "EBL",
+    "base": "https://db.eurobridge.org/repository/competitions/26Prague/microsite/Asp/",
+    "tournid": 2600,
+    "name": "Prague Open Teams 2026",
+    "year": 2026,
+    "series": "Open Teams"
+  },
+  {
+    "key": "prague25_swiss",
+    "site": "EBL",
+    "base": "https://db.eurobridge.org/repository/competitions/25Prague/microsite/Asp/",
+    "tournid": 2500,
+    "name": "Prague Swiss Teams 2025",
+    "year": 2025,
+    "series": "Swiss Teams"
+  },
+  {
+    "key": "poznan25_open",
+    "site": "EBL",
+    "base": "https://db.eurobridge.org/repository/competitions/25Poznan/microsite/Asp/",
+    "tournid": 2588,
+    "name": "Poznan Open Teams 2025",
+    "year": 2025,
+    "series": "Open Teams"
+  },
+  {
+    "key": "poznan25_women",
+    "site": "EBL",
+    "base": "https://db.eurobridge.org/repository/competitions/25Poznan/microsite/Asp/",
+    "tournid": 2511,
+    "name": "Poznan Women Teams 2025",
+    "year": 2025,
+    "series": "Women Teams"
+  },
+  {
+    "key": "poznan25_senior",
+    "site": "EBL",
+    "base": "https://db.eurobridge.org/repository/competitions/25Poznan/microsite/Asp/",
+    "tournid": 2512,
+    "name": "Poznan Senior Teams 2025",
+    "year": 2025,
+    "series": "Senior Teams"
+  },
+  {
+    "key": "poznan25_mixed",
+    "site": "EBL",
+    "base": "https://db.eurobridge.org/repository/competitions/25Poznan/microsite/Asp/",
+    "tournid": 2513,
+    "name": "Poznan Mixed Teams 2025",
+    "year": 2025,
+    "series": "Mixed Teams"
   }
 ]
