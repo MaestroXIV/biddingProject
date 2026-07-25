@@ -108,16 +108,27 @@ class Fetcher:
         return data
 
     # -- transports ---------------------------------------------------------
-    def _fetch_httpx(self, url: str) -> bytes:
+    def _fetch_httpx(self, url: str, attempts: int = 4) -> bytes:
         if self._httpx is None:
             self._httpx = httpx.Client(follow_redirects=True, timeout=30.0)
-        resp = self._httpx.get(url, headers={"User-Agent": USER_AGENT})
-        if resp.status_code == 403:
-            raise RuntimeError(
-                f"403 for {url} -- unexpected for WBF; investigate before retrying."
-            )
-        resp.raise_for_status()
-        return resp.content
+        last: Exception | None = None
+        for i in range(attempts):
+            try:
+                resp = self._httpx.get(url, headers={"User-Agent": USER_AGENT})
+            except httpx.TransportError as e:      # timeouts, resets, etc.
+                last = e
+                time.sleep(2 * (i + 1))            # linear backoff, polite
+                continue
+            if resp.status_code == 403:
+                raise RuntimeError(
+                    f"403 for {url} -- unexpected for WBF; investigate first.")
+            if resp.status_code in (429, 500, 502, 503, 504):
+                last = RuntimeError(f"HTTP {resp.status_code}")
+                time.sleep(2 * (i + 1))
+                continue
+            resp.raise_for_status()
+            return resp.content
+        raise RuntimeError(f"giving up on {url} after {attempts} tries: {last}")
 
     def _ensure_browser(self):
         if self._ctx is not None:
