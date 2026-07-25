@@ -25,7 +25,11 @@ import httpx
 USER_AGENT = "BoardBase/0.1 (personal research; gregor.rus14@gmail.com)"
 MIN_INTERVAL = 1.0  # seconds between requests (SPEC 4.6: max ~1 req/sec)
 CHALLENGE_MARKERS = ("just a moment", "enable javascript", "checking your browser")
-CHALLENGE_TIMEOUT = 45.0  # seconds to wait for Cloudflare to clear
+# Cloudflare shows a human-solvable "Verify you are human" checkbox. Headed, we
+# wait for a person to click it (once per session -- the persistent profile then
+# reuses the clearance cookie). Headless can't be solved, so we fail fast.
+CHALLENGE_TIMEOUT_INTERACTIVE = 300.0
+CHALLENGE_TIMEOUT_HEADLESS = 30.0
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 CACHE_ROOT = REPO_ROOT / "data" / "rawcache"
@@ -51,6 +55,7 @@ class Fetcher:
             headless = os.environ.get("BOARDBASE_HEADLESS", "0") == "1"
         self.headless = headless
         self._last = 0.0
+        self._prompted = False
         self._httpx: httpx.Client | None = None
         self._pw = None          # playwright instance
         self._ctx = None         # persistent browser context
@@ -128,18 +133,42 @@ class Fetcher:
         return html.encode("utf-8")
 
     def _wait_for_challenge(self, page, url: str) -> None:
-        """Block until Cloudflare's interstitial clears, or raise on timeout."""
-        deadline = time.monotonic() + CHALLENGE_TIMEOUT
-        while True:
+        """Block until Cloudflare's interstitial clears, or raise on timeout.
+
+        Headed, this waits for a human to tick the "Verify you are human" box in
+        the open window (then the persistent profile reuses the clearance cookie
+        for the rest of the run). Headless can't solve it, so we fail fast.
+        """
+        def challenged() -> bool:
             title = (page.title() or "").lower()
             body = (page.content() or "").lower()
-            if not any(m in title or m in body[:2000] for m in CHALLENGE_MARKERS):
-                return
+            return any(m in title or m in body[:2000] for m in CHALLENGE_MARKERS)
+
+        if not challenged():
+            return
+        if self.headless:
+            raise RuntimeError(
+                f"Cloudflare challenge for {url} cannot be solved headless. "
+                "Run headed (do not set BOARDBASE_HEADLESS=1) from a residential "
+                "connection; do not try to solve it in code."
+            )
+        if not self._prompted:
+            print(
+                "\n" + "=" * 68
+                + "\n  Cloudflare check: click the 'Verify you are human' checkbox"
+                + "\n  in the Chromium window that just opened. Solve it ONCE; the"
+                + "\n  rest of the fetch continues automatically.\n"
+                + "=" * 68 + "\n",
+                flush=True,
+            )
+            self._prompted = True
+        deadline = time.monotonic() + CHALLENGE_TIMEOUT_INTERACTIVE
+        while challenged():
             if time.monotonic() > deadline:
                 raise RuntimeError(
-                    f"Cloudflare challenge did not clear for {url} within "
-                    f"{CHALLENGE_TIMEOUT:.0f}s. Run headed (BOARDBASE_HEADLESS unset) "
-                    "from a residential connection; do not try to solve it in code."
+                    f"Challenge for {url} not solved within "
+                    f"{CHALLENGE_TIMEOUT_INTERACTIVE:.0f}s. Re-run and click the "
+                    "checkbox in the window."
                 )
             page.wait_for_timeout(1000)
 
