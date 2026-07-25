@@ -7,10 +7,18 @@
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
+  {% set path = request.url.path if request else '/' %}
   <header class="topbar">
-    <a href="/" class="brand">BoardBase</a>
-    <nav class="nav"><a href="/">Search</a><a href="/explore">Sequence Explorer</a><a href="/pair">Pair</a><a href="/player">Player</a></nav>
-    <span class="tag">tournament auctions, queryable</span>
+    <div class="bar">
+      <a href="/" class="brand"><span class="mark">♠</span>BoardBase</a>
+      <nav class="nav">
+        <a href="/" class="{{ 'active' if path == '/' }}">Search</a>
+        <a href="/explore" class="{{ 'active' if path.startswith('/explore') }}">Sequence Explorer</a>
+        <a href="/pair" class="{{ 'active' if path.startswith('/pair') }}">Pair</a>
+        <a href="/player" class="{{ 'active' if path.startswith('/player') }}">Player</a>
+      </nav>
+      <span class="tag">tournament auctions, queryable</span>
+    </div>
   </header>
   <main>{% block body %}{% endblock %}</main>
 </body>
