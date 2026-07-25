@@ -5,3 +5,4 @@ __pycache__/
 data/rawcache/
 data/boardbase.db
 .claude/
+.DS_Store

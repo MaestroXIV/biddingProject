@@ -19,10 +19,21 @@ CARD_CHARS = "AKQJT98765432"
 
 
 def decode(raw: bytes | str) -> str:
-    """Decode a page per its declared charset (iso-8859-1 on these sites)."""
+    """Decode a page to str.
+
+    The sites declare iso-8859-1, but a page saved through a browser is often
+    re-encoded as UTF-8. Suit symbols are HTML entities (&spades; etc.) either
+    way, so only accented player names depend on this. Try UTF-8 first (also
+    covers pure ASCII+entities) and fall back to iso-8859-1.
+    """
     if isinstance(raw, str):
         return raw
-    return raw.decode("iso-8859-1")
+    if raw.startswith(b"\xef\xbb\xbf"):  # UTF-8 BOM
+        return raw[3:].decode("utf-8", errors="replace")
+    try:
+        return raw.decode("utf-8")
+    except UnicodeDecodeError:
+        return raw.decode("iso-8859-1")
 
 
 def _ws(s: str) -> str:
