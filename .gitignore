@@ -9,3 +9,5 @@ data/boardbase.db
 data/browserprofile/
 data/chromeprofile/
 !data/tournaments.json
+dist/
+share/*.db

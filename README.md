@@ -45,3 +45,14 @@ opening call, position, vulnerability, competitive, contract…), click any card
 to open the **deal traveller** (full diagram + every table's auction, filterable
 by opening call), and follow the "source" links back to the official EBL/WBF
 pages. "Export CSV" downloads the current result set.
+
+## Share as a single offline file
+
+Build a self-contained `BoardBase.html` — the whole database runs inside the
+browser via SQLite-WebAssembly, so search / Explorer / dashboards all work with
+no server and no internet:
+
+    .venv/bin/python share/build.py      # -> dist/BoardBase.html (~17 MB)
+
+Send that one file to anyone; they double-click it to open in a modern browser
+(Chrome/Edge/Firefox/Safari). Nothing to install.
