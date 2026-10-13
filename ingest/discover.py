@@ -264,12 +264,13 @@ def plan_registrations(entries: list[dict], site: str, base: str, year: int,
     out, used = [], set()
     for e in sorted(entries, key=lambda x: x["tournid"]):
         event = e["name"]
-        slug = slugify(event) + ("_ko" if e["kind"] == "ko" else "")
+        has_ko = bool(re.search(r"\bKO\b", event))
+        slug = slugify(event) + ("_ko" if e["kind"] == "ko" and not has_ko else "")
         key = f"{prefix}_{slug}"
         if key in used:
             key = f"{key}_{e['tournid']}"
         used.add(key)
-        label = f"{event} KO" if e["kind"] == "ko" else event
+        label = f"{event} KO" if e["kind"] == "ko" and not has_ko else event
         out.append(Tournament(key=key, site=site, base=base, tournid=e["tournid"],
                               name=f"{label} {year}", year=year, series=event,
                               kind=e["kind"]))

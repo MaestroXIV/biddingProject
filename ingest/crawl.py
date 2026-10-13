@@ -205,13 +205,29 @@ def _pairs_entry(t: Tournament, fetcher: Fetcher) -> list[parse.Phase]:
 
 def _first_board_from_totalpairs(t: Tournament, fetcher: Fetcher, group: str,
                                  session: int, counts: dict) -> int | None:
-    """Fallback when board 1 is empty: the session ranking's first traveller link."""
+    """Fallback when board 1 is empty (later sessions number their boards on,
+    e.g. 17-32). The session ranking (TotalPairs) links each pair's scorecard
+    (boarddetailspairs); a scorecard links every board's traveller. Take the
+    first traveller link found on either page."""
+    trav = re.compile(r"BoardAcrossPairs\.asp\?[^\"'<>\s]*", re.I)
     url = (f"{t.base}TotalPairs.asp?qtournid={t.tournid}&qgroupno={group}"
            f"&qroundno={session}")
     raw = _get(fetcher, t, url, f"tp_g{group}_r{session}.html", counts, "totalpairs")
     if raw is None:
         return None
-    m = re.search(r"BoardAcrossPairs\.asp\?[^\"'<>\s]*", parse.decode(raw), re.I)
+    html = parse.decode(raw)
+    m = trav.search(html)
+    if m:
+        return qboard_of(m.group(0))
+    card = re.search(r"boarddetailspairs\.asp\?[^\"'<>\s]*", html, re.I)
+    if not card:
+        return None
+    card_url = t.base + card.group(0).replace("&amp;", "&")
+    raw = _get(fetcher, t, card_url, f"card_g{group}_r{session}.html", counts,
+               "scorecard")
+    if raw is None:
+        return None
+    m = trav.search(parse.decode(raw))
     return qboard_of(m.group(0)) if m else None
 
 

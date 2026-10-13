@@ -306,10 +306,13 @@ def test_crawl_pairs(env):
         tp + "1&qroundno=1": EMPTY,            # no phases -> not the entry
         tp + "2&qroundno=1": tp_page(2646, [(2, "Qualifier", 3)]),
         crawl.bap_url(t, "2", 1, 1): bap,
-        # session 2: board 1 is empty, TotalPairs session page links board 5
+        # session 2: boards numbered 17-32 (as on the real site), so board 1 is
+        # empty; the ranking links only scorecards, a scorecard links board 17
         crawl.bap_url(t, "2", 2, 1): EMPTY,
-        tp + "2&qroundno=2": b'<a href="BoardAcrosspairs.asp?qboard=5&qtournid=2646">5</a>',
-        crawl.bap_url(t, "2", 2, 5): bap,
+        tp + "2&qroundno=2": b'<a href="boarddetailspairs.asp?qtournid=2646&amp;qgroupno=2&amp;qroundno=2&amp;qpairid=3006">1</a>',
+        f"{BASE}boarddetailspairs.asp?qtournid=2646&qgroupno=2&qroundno=2&qpairid=3006":
+            b'<a href="BoardAcrosspairs.asp?qboard=17&qtournid=2646&qroundno=2&qgroupno=2&qdesktop=0">17</a>',
+        crawl.bap_url(t, "2", 2, 17): bap,
         # session 3: nothing at all -> skipped
         crawl.bap_url(t, "2", 3, 1): EMPTY,
     }
@@ -317,14 +320,15 @@ def test_crawl_pairs(env):
         pages[crawl.bap_url(t, "2", 1, b)] = bap
     counts = crawl.crawl(t, FakeFetcher(pages))
     assert counts["phases"] == 1 and counts["sessions"] == 2 and counts["empty"] == 1
-    assert counts["boards"] == 16 + 1               # S1: all 16; S2: b5 only
+    assert counts["boards"] == 16 + 1               # S1: all 16; S2: b17 only
     d = crawl.cache_dir(t)
     assert (d / "tp_entry.html").read_bytes() == pages[tp + "2&qroundno=1"]
     assert all((d / f"bap_g2_r1_b{b}.html").exists() for b in range(1, 17))
-    assert (d / "bap_g2_r2_b5.html").exists() and (d / "tp_g2_r2.html").exists()
+    assert (d / "bap_g2_r2_b17.html").exists() and (d / "tp_g2_r2.html").exists()
+    assert (d / "card_g2_r2.html").exists()
     assert (d / "bap_g2_r2_b1.html").read_bytes() == EMPTY
     # S2's other boards were requested at S2 urls (404 here -> logged, skipped)
-    assert counts["board_missing"] == 14
+    assert counts["board_missing"] == 15
 
 
 def test_crawl_pairs_no_entry_raises(env):
