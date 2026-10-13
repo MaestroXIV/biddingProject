@@ -8,7 +8,7 @@
     <label>Player <input name="name" value="{{ player.name if player else name }}" placeholder="KLUKOWSKI"></label>
     <label>Tournament
       <select name="tournament"><option value="">all</option>
-        {% for t in tournaments %}<option value="{{ t['slug'] }}" {{ 'selected' if tournament==t['slug'] }}>{{ t['name'] }}</option>{% endfor %}
+        {% for t in tournaments %}<option value="{{ t['slug'] }}" {{ 'selected' if tournament==t['slug'] }}>{{ tlabel(t) }}</option>{% endfor %}
       </select>
     </label>
   </div>
@@ -37,6 +37,8 @@
     <a href="/pair?p1={{ player.name }}&p2={{ p.name }}{{ '&tournament=' ~ tournament if tournament }}">{{ p.name }}</a> <span class="dim">({{ p.n }})</span>{{ '' if loop.last else ' · ' }}
   {% else %}—{% endfor %}
 </p>
+
+{% if has_pairs %}<p class="note">Pairs events count at pair level only — seats within a pair aren't published, so they're not in this player's opener counts. See the pair dashboard via Partners.</p>{% endif %}
 
 <p class="cmeta">Events: {% for e in events %}<a href="/player?name={{ player.name }}&tournament={{ e['slug'] }}">{{ e['name'] }}</a>{{ '' if loop.last else ' · ' }}{% endfor %}</p>
 {% endif %}

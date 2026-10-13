@@ -6,10 +6,18 @@
       <select name="tournament">
         <option value="">any</option>
         {% for t in tournaments %}
-        <option value="{{ t['slug'] }}" {{ 'selected' if f.tournament==t['slug'] }}>{{ t['name'] }}</option>
+        <option value="{{ t['slug'] }}" {{ 'selected' if f.tournament==t['slug'] }}>{{ tlabel(t) }}</option>
         {% endfor %}
       </select>
     </label>
+    {% if stages %}
+    <label>Stage
+      <select name="stage">
+        <option value="">any</option>
+        {% for s in stages %}<option value="{{ s }}" {{ 'selected' if f.stage==s }}>{{ s }}</option>{% endfor %}
+      </select>
+    </label>
+    {% endif %}
     <label>Player
       <input name="player" value="{{ f.player }}" placeholder="e.g. KLUKOWSKI">
     </label>
@@ -89,9 +97,14 @@
   {% for r in results %}
   <div class="card">
     <div class="chead">
-      <a href="/deal/{{ r.deal_id }}">{{ r.tslug }} · R{{ r.round_no }} · Board {{ r.board_no }}</a>
+      <a href="/deal/{{ r.deal_id }}">{{ r.tslug }} · {{ r.rdisp }} · Board {{ r.board_no }}</a>
+      {% if r.kind == 'pairs' %}
+      <span class="room tbl">{{ r.table_label or 'table ?' }}</span>
+      <span class="teams"><span class="dir">NS</span> {{ r.home_team }} vs <span class="dir">EW</span> {{ r.visiting_team }}</span>
+      {% else %}
       <span class="room">{{ r.room }}</span>
       <span class="teams">{{ r.home_team }} vs {{ r.visiting_team }}</span>
+      {% endif %}
     </div>
     <div class="cmeta">
       Dealer {{ r.dealer }} · {{ r.vul }}
@@ -99,12 +112,14 @@
       {% if r.competitive %}· competitive{% endif %}
     </div>
     {% if r.opener_hand %}<div class="ohand">opener {{ r.opener_seat }}: {{ r.opener_hand|hand }}</div>{% endif %}
-    <div class="auction">{{ auction_oneliner(r.from_opener, r.calls_list, r.dealer) }}</div>
+    {% if r.calls_list %}<div class="auction">{{ auction_oneliner(r.from_opener, r.calls_list, r.dealer) }}</div>
+    {% else %}<div class="nobid">no bidding recorded</div>{% endif %}
     <div class="cfoot">
       <span>{{ r.contract }} {% if r.declarer %}by {{ r.declarer }}{% endif %}
         {% if r.tricks is not none %}· {{ r.tricks }} tr{% endif %}
         {% if r.score_ns is not none %}· NS {{ r.score_ns }}{% endif %}
-        {% if r.score_ew is not none %}· EW {{ r.score_ew }}{% endif %}</span>
+        {% if r.score_ew is not none %}· EW {{ r.score_ew }}{% endif %}
+        {% if r.pct_ns is not none or r.pct_ew is not none %}<span class="mp" title="NS {{ r.mp_ns|mp }} mp · EW {{ r.mp_ew|mp }} mp">NS {{ r.pct_ns|pct }} · EW {{ r.pct_ew|pct }}</span>{% endif %}</span>
       <a class="src" href="{{ r.source_url }}" target="_blank" rel="noopener">source ↗</a>
     </div>
   </div>

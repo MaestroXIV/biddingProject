@@ -66,3 +66,16 @@ def auction_oneliner(from_opener: str | None, calls: list[str], dealer: str):
         h = call_html(inner)
         out.append(Markup(f"({h})") if paren else h)
     return Markup(" ".join(str(x) for x in out))
+
+
+def _num(v: float) -> str:
+    return f"{v:.2f}".rstrip("0").rstrip(".")
+
+
+def pct(v) -> str:
+    """Board percentage for pairs (91.67 -> '91.67%'); '' when unknown."""
+    return "" if v is None else f"{_num(v)}%"
+
+
+def mp(v) -> str:
+    return "" if v is None else _num(v)

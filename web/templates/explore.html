@@ -9,7 +9,7 @@
       <select name="tournament">
         <option value="">any</option>
         {% for t in tournaments %}
-        <option value="{{ t['slug'] }}" {{ 'selected' if f.tournament==t['slug'] }}>{{ t['name'] }}</option>
+        <option value="{{ t['slug'] }}" {{ 'selected' if f.tournament==t['slug'] }}>{{ tlabel(t) }}</option>
         {% endfor %}
       </select>
     </label>
@@ -66,7 +66,7 @@
         <td class="bpat">{{ b.patterns|join(' · ') }}</td>
         <td class="bsamp">
           {% for s in b.samples %}
-          <a href="/deal/{{ s.deal_id }}" title="{{ s.seat }} {{ s.hand }} ({{ s.hcp }} HCP)">{{ s.tslug }} R{{ s.round_no }}·{{ s.board_no }}</a>{{ '' if loop.last else ', ' }}
+          <a href="/deal/{{ s.deal_id }}" title="{{ s.seat }} {{ s.hand }} ({{ s.hcp }} HCP)">{{ s.tslug }} {{ s.rdisp }}·{{ s.board_no }}</a>{{ '' if loop.last else ', ' }}
           {% endfor %}
         </td>
       </tr>

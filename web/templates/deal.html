@@ -1,12 +1,12 @@
 {% extends "base.html" %}
-{% block title %}{{ d['tslug'] }} R{{ d['round_no'] }} Board {{ d['board_no'] }} — BoardBase{% endblock %}
+{% block title %}{{ d['tslug'] }} {{ d['round_title'] }} Board {{ d['board_no'] }} — BoardBase{% endblock %}
 {% block body %}
 <a class="back" href="javascript:history.back()">← back to results</a>
 
 <div class="dealhead">
-  <h2>{{ d['tname'] }} · Round {{ d['round_no'] }} · Board {{ d['board_no'] }}</h2>
+  <h2>{{ d['tname'] }} · {{ d['round_title'] }} · Board {{ d['board_no'] }}</h2>
   <div class="cmeta">Dealer {{ d['dealer'] }} · {{ d['vul'] }} vulnerable</div>
-  <a class="src" href="{{ board_across }}" target="_blank" rel="noopener">official deal page (BoardAcross) ↗</a>
+  <a class="src" href="{{ board_across }}" target="_blank" rel="noopener">official deal page ↗</a>
 </div>
 
 <div class="diagram">
@@ -36,21 +36,35 @@
   {% set r = row.r %}
   <div class="traveller">
     <div class="thead">
+      {% if row.pairs %}
+      <span class="room tbl">{{ r['table_label'] or 'table ?' }}</span>
+      <span class="teams"><span class="dir">NS</span> {% if row.ns_url %}<a href="{{ row.ns_url }}">{{ r['home_team'] }}</a>{% else %}{{ r['home_team'] }}{% endif %}
+        vs <span class="dir">EW</span> {% if row.ew_url %}<a href="{{ row.ew_url }}">{{ r['visiting_team'] }}</a>{% else %}{{ r['visiting_team'] }}{% endif %}</span>
+      {% else %}
       <span class="teams">{{ r['home_team'] }} vs {{ r['visiting_team'] }}</span>
       <span class="room">{{ r['room'] }}</span>
+      {% endif %}
       <span class="res">{{ r['contract'] }}{% if r['declarer'] %} by {{ r['declarer'] }}{% endif %}
         {% if r['tricks'] is not none %}· {{ r['tricks'] }} tr{% endif %}
         {% if r['score_ns'] is not none %}· NS {{ r['score_ns'] }}{% endif %}
         {% if r['score_ew'] is not none %}· EW {{ r['score_ew'] }}{% endif %}</span>
     </div>
+    {% if r['pct_ns'] is not none or r['pct_ew'] is not none or r['mp_ns'] is not none %}
+    <div class="mprow"><span>NS <b>{{ r['pct_ns']|pct }}</b> <span class="dim">{{ r['mp_ns']|mp }} mp</span></span>
+      <span>EW <b>{{ r['pct_ew']|pct }}</b> <span class="dim">{{ r['mp_ew']|mp }} mp</span></span></div>
+    {% endif %}
+    {% if not r['has_auction'] %}
+    <p class="nobid">no bidding recorded</p>
+    {% else %}
     <table class="auc">
-      <thead><tr>{% for s in SEATS_WNES %}<th>{{ s }}<br><small>{{ row.players.get(s,'') }}</small></th>{% endfor %}</tr></thead>
+      <thead><tr>{% for s in SEATS_WNES %}<th>{{ s }}{% if r['seats_known'] %}<br><small>{{ row.players.get(s,'') }}</small>{% endif %}</th>{% endfor %}</tr></thead>
       <tbody>
         {% for line in auction_grid(row.calls_list, d['dealer'], r['opener_rel_pos']) %}
         <tr>{% for cell, is_open in line %}<td class="{{ 'open' if is_open }}">{{ cell }}</td>{% endfor %}</tr>
         {% endfor %}
       </tbody>
     </table>
+    {% endif %}
   </div>
   {% endfor %}
 </div>

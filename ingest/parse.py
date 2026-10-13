@@ -216,6 +216,8 @@ def parse_handsacross(raw: bytes | str) -> list[Deal]:
     BrdDispl cells that follow are the hands in N, W, E, S order.
     """
     tree = HTMLParser(decode(raw))
+    if _layout_of(tree) == "cards":
+        return _parse_handsacross_cards(tree)
     hands = tree.css(".BrdDispl")
     # Header labels 'Brd N<Dealer>/<Vul>' are split across tags in the raw HTML,
     # so match against the whitespace-normalized rendered text.
@@ -263,6 +265,8 @@ def _href(node: Node) -> str:
 
 def parse_roundteams(raw: bytes | str) -> RoundTeams:
     tree = HTMLParser(decode(raw))
+    if _layout_of(tree) == "cards":
+        return _parse_roundteams_cards(tree)
     title = _ws(tree.css_first("body").text())[:120]
     handsacross = boardacross_full = None
     for a in tree.css("a"):
@@ -400,6 +404,8 @@ def _normalize_lead(s: str) -> str:
 
 def parse_boarddetails(raw: bytes | str) -> BoardDetails:
     tree = HTMLParser(decode(raw))
+    if _layout_of(tree) == "cards":
+        return _parse_boarddetails_cards(tree)
     seating = parse_seating(tree)
     tips = tree.css("a.tooltip")
     auctions = [parse_auction(a) for a in tips]
@@ -447,14 +453,264 @@ def page_layout(raw: bytes | str) -> str:
     """'cards' for the 2026 redesign (div.board-card / div.deal-card / div.match
     rows), else 'classic'. parse_roundteams / parse_handsacross /
     parse_boarddetails dispatch on this automatically."""
-    raise NotImplementedError
+    return _layout_of(HTMLParser(decode(raw)))
+
+
+_CARDS_MARKERS = ("div.board-card, div.deal-card, div.match[data-mid], "
+                  ".bh-title, div.lineups, div.evhead")
+
+
+def _layout_of(tree: HTMLParser) -> str:
+    return "cards" if tree.css_first(_CARDS_MARKERS) is not None else "classic"
 
 
 def parse_qboard(href: str) -> tuple[int, int | None, str | None, int | None]:
     """'qboard=001.01..2642' -> (1, 1, None, 2642)  (teams: board.round..tournid)
        'qboard=001.02.16.2653' -> (1, 2, '16', 2653) (KO: board.segment.phase.tournid)
        'qboard=7' -> (7, None, None, None)           (pairs)"""
-    raise NotImplementedError
+    m = re.search(r"qboard=([^&#\s]+)", href, re.I)
+    val = m.group(1) if m else href.strip()
+    parts = val.split(".")
+    if not parts[0].strip().isdigit():
+        raise ValueError(f"unparseable qboard: {href!r}")
+    board = int(parts[0])
+    if len(parts) == 1:
+        return board, None, None, None
+
+    def num(x: str) -> int | None:
+        return int(x) if x.strip().isdigit() else None
+
+    rnd = num(parts[1])
+    phase = (parts[2].strip() or None) if len(parts) > 2 else None
+    tid = num(parts[3]) if len(parts) > 3 else None
+    return board, rnd, phase, tid
+
+
+# --- cards-layout helpers ----------------------------------------------------
+
+def _qint(href: str, key: str) -> int | None:
+    m = re.search(rf"[?&]{key}=(\d+)", href, re.I)
+    return int(m.group(1)) if m else None
+
+
+def _txt(node: Node | None) -> str:
+    return _ws(node.text(deep=True)) if node is not None else ""
+
+
+def parse_auction_table(table: Node, contract: str = "") -> Auction:
+    """Auction from a bare W N E S bidding <table> (cards-layout .bidpanel).
+
+    Same rules as parse_auction: skip the header row, read row-major, drop
+    placeholders; the first real call's column gives the dealer seat."""
+    calls: list[str] = []
+    first_seat: str | None = None
+    for tr in table.css("tr")[1:]:
+        for col, td in enumerate(tr.css("td")):
+            tok = normalize_call(td.text(deep=True))
+            if tok is None:
+                continue
+            if first_seat is None:
+                first_seat = SEAT_ORDER[col % 4]
+            calls.append(tok)
+    return Auction(contract=contract, calls=calls, first_seat=first_seat or "")
+
+
+def _cards_contract(cell: Node | None) -> tuple[str, str]:
+    """.cell.contract -> (normalized contract, declarer)."""
+    if cell is None:
+        return "", ""
+    decl_node = cell.css_first("span.decl")
+    decl = _txt(decl_node)
+    t = cell.text(deep=True)
+    if decl_node is not None:
+        dt = decl_node.text(deep=True)
+        if dt:
+            i = t.rfind(dt)
+            t = t[:i] + t[i + len(dt):]
+    t = _ws(t)
+    if t.lower().startswith("adj"):
+        contract = "Adj"
+    else:
+        contract = _normalize_contract(t)
+    return contract, (decl if decl in ("N", "E", "S", "W") else "")
+
+
+def _signed(s: str) -> int | None:
+    s = _ws(s).replace("\u2212", "-")
+    return int(s) if re.fullmatch(r"[+-]?\d+", s) else None
+
+
+def _ns_ew(v: int | None) -> tuple[int | None, int | None]:
+    """N-S-signed score -> classic (score_ns, score_ew) convention."""
+    if v is None:
+        return None, None
+    if v > 0:
+        return v, None
+    if v < 0:
+        return None, -v
+    return 0, 0
+
+
+def _cards_result(node: Node) -> tuple[str, str, str, int | None, int | None, int | None]:
+    """A .room (teams) or .board-card (pairs) -> contract, decl, lead, tricks, ns, ew."""
+    contract, decl = _cards_contract(node.css_first(".cell.contract"))
+    lead = _normalize_lead(_txt(node.css_first(".cell.lead .cv")))
+    tricks = _to_int(_txt(node.css_first(".cell.tricks .cv")))
+    ns, ew = _ns_ew(_signed(_txt(node.css_first(".cell.score .cv"))))
+    return contract, decl, lead, tricks, ns, ew
+
+
+def _cards_hand(hand: Node | None) -> str:
+    """.hand with four .row (suit span + 'AKQ3' or 'Q 4 ', void '–'/empty)."""
+    if hand is None:
+        raise ValueError("missing hand diagram")
+    suits = {"S": "-", "H": "-", "D": "-", "C": "-"}
+    for row in hand.css(".row"):
+        su = row.css_first(".su")
+        glyph = _txt(su)
+        key = SUIT_GLYPH.get(glyph[:1]) if glyph else None
+        if key is None:
+            raise ValueError(f"hand row without suit: {row.html!r}")
+        t = row.text(deep=True)
+        if su is not None:
+            t = t.replace(su.text(deep=True), "", 1)
+        t = t.replace("10", "T")
+        cards = "".join(ch for ch in t.upper() if ch in CARD_CHARS)
+        suits[key] = cards or "-"
+    return ".".join(suits[k] for k in ("S", "H", "D", "C"))
+
+
+def _cards_deal(container: Node | None, board_no: int, dealer: str, vul: str) -> Deal:
+    if container is None:
+        raise ValueError("missing .deal diagram")
+    h = {p: _cards_hand(container.css_first(f".pos-{p} .hand"))
+         for p in ("n", "w", "e", "s")}
+    return Deal(board_no, dealer, vul, h["n"], h["w"], h["e"], h["s"])
+
+
+def _dealer_vul(text: str) -> tuple[str, str]:
+    """'Dealer North • None Vulnerable' / 'Dealer North None vulnerable'."""
+    m = re.search(r"Dealer\s*(North|East|South|West)\W*(None|N-S|E-W|All|Both|Love)"
+                  r"\s+vulnerable", _ws(text), re.I)
+    if not m:
+        raise ValueError(f"unparseable dealer/vul: {text!r}")
+    return _DEALER_MAP[m.group(1).title()], _HA_VUL[
+        m.group(2) if "-" in m.group(2) else m.group(2).title()]
+
+
+def _parse_handsacross_cards(tree: HTMLParser) -> list[Deal]:
+    deals: list[Deal] = []
+    for card in tree.css("div.deal-card"):
+        bno = _to_int(_txt(card.css_first(".dc-brd")))
+        if bno is None:
+            m = re.search(r"\d+", _txt(card.css_first(".dc-brd")))
+            bno = int(m.group(0)) if m else 0
+        dealer, vul = _dealer_vul(_txt(card.css_first(".dc-info")))
+        deals.append(_cards_deal(card.css_first(".deal"), bno, dealer, vul))
+    return deals
+
+
+def _parse_roundteams_cards(tree: HTMLParser) -> RoundTeams:
+    head = [_txt(tree.css_first(".evhead .cell.title"))]
+    rnd = _txt(tree.css_first(".evhead .cell.round .val"))
+    if rnd:
+        head.append(f"Round {rnd}")
+    sel = tree.css_first("select.phase-sel option[selected]")
+    if sel is not None:
+        head.append(_txt(sel))
+    title = _ws(" ".join(head))[:120]
+    handsacross = boardacross_full = None
+    for a in tree.css("a"):
+        low = _href(a).lower()
+        if "handsacross" in low:
+            handsacross = _href(a)
+        elif "boardacrossfullround" in low:
+            boardacross_full = _href(a)
+
+    matches: list[RoundMatch] = []
+    team_ids: set[int] = set()
+    seen: set[int] = set()
+    for div in tree.css("div.match[data-mid]"):
+        mid_s = (div.attributes.get("data-mid") or "").strip()
+        if not mid_s.isdigit() or int(mid_s) in seen:
+            continue
+        mid = int(mid_s)
+        seen.add(mid)
+        home = div.css_first(".m-team.home a.name") or div.css_first(".m-team.home a")
+        vis = div.css_first(".m-team.vis a.name") or div.css_first(".m-team.vis a")
+        hid = _qint(_href(home), "qteamid") if home is not None else None
+        vid = _qint(_href(vis), "qteamid") if vis is not None else None
+        team_ids.update(x for x in (hid, vid) if x is not None)
+        tn = _txt(div.css_first("a.tbl-link .n"))
+        matches.append(RoundMatch(
+            ext_match_id=mid, home_team=_txt(home), visiting_team=_txt(vis),
+            home_team_id=hid, visiting_team_id=vid,
+            table_no=int(tn) if tn.isdigit() else None,
+        ))
+    return RoundTeams(title=title, matches=matches, team_ids=sorted(team_ids),
+                      handsacross_href=handsacross,
+                      boardacrossfullround_href=boardacross_full)
+
+
+def _parse_boarddetails_cards(tree: HTMLParser) -> BoardDetails:
+    cards = tree.css("div.board-card")
+    lineups = tree.css(".lineups .lineup")
+    if not cards and not lineups:
+        raise EmptyPage("BoardDetails: no board cards and no line-ups")
+    rooms: dict[str, dict[str, str]] = {"open": {}, "closed": {}}
+    for lu in lineups:
+        h = _txt(lu.css_first("h4")).lower()
+        key = "open" if h.startswith("open") else "closed" if h.startswith("closed") else None
+        if key is None:
+            continue
+        rooms[key] = {p.upper(): _txt(lu.css_first(f".pos-{p} .pn"))
+                      for p in ("n", "w", "e", "s")}
+    seating = Seating(open=rooms["open"], closed=rooms["closed"])
+
+    home_a = tree.css_first(".matchhead .team.home a")
+    vis_a = tree.css_first(".matchhead .team.vis a")
+    home_team = _txt(home_a) or _txt(tree.css_first(".matchhead .team.home"))
+    vis_team = _txt(vis_a) or _txt(tree.css_first(".matchhead .team.vis"))
+    home_id = _qint(_href(home_a), "qteamid") if home_a is not None else None
+    vis_id = _qint(_href(vis_a), "qteamid") if vis_a is not None else None
+
+    instances: list[Instance] = []
+    segment: int | None = None
+    for card in cards:
+        brd = card.css_first(".brd")
+        m = re.search(r"\d+", _txt(brd))
+        board_no = int(m.group(0)) if m else 0
+        if segment is None and brd is not None and "qboard=" in _href(brd).lower():
+            try:
+                segment = parse_qboard(_href(brd))[1]
+            except ValueError:
+                pass
+        bids: dict[str, Node] = {}
+        for col in card.css(".bidpanel .bidcol"):
+            h = _txt(col.css_first(".bidcol-h")).lower()
+            tbl = col.css_first("table")
+            if tbl is None:
+                continue
+            if h.startswith("open"):
+                bids["Open"] = tbl
+            elif h.startswith("closed"):
+                bids["Closed"] = tbl
+        for room, cls in (("Open", "open"), ("Closed", "closed")):
+            node = card.css_first(f".room.{cls}")
+            if node is None:
+                continue
+            contract, decl, lead, tricks, ns, ew = _cards_result(node)
+            auction = None
+            if room in bids and contract != "Adj":
+                auction = parse_auction_table(bids[room], contract)
+            instances.append(Instance(
+                board_no=board_no, room=room, contract=contract, declarer=decl,
+                lead=lead, tricks=tricks, score_ns=ns, score_ew=ew, auction=auction))
+    return BoardDetails(
+        seating=seating, n_tooltips=0,
+        auctions=[i.auction for i in instances if i.auction is not None],
+        instances=instances, home_team=home_team, visiting_team=vis_team,
+        home_team_id=home_id, visiting_team_id=vis_id, segment=segment)
 
 
 # --- pairs -------------------------------------------------------------------
@@ -492,7 +748,61 @@ def parse_boardacross_pairs(raw: bytes | str) -> PairsBoard:
     """BoardAcrossPairs.asp: header (Board N, dealer, vul) + diagram + every table.
     An out-of-range board returns a ~770-byte page with no .board-card and no
     .bh-title: raise EmptyPage for that."""
-    raise NotImplementedError
+    tree = HTMLParser(decode(raw))
+    title = tree.css_first(".bh-title")
+    cards = tree.css("div.board-card")
+    if title is None and not cards:
+        raise EmptyPage("BoardAcrossPairs: empty shell")
+    if title is None:
+        raise ValueError("BoardAcrossPairs: board cards but no .bh-title")
+    m = re.search(r"\d+", _txt(title))
+    if not m:
+        raise ValueError(f"unparseable board title: {_txt(title)!r}")
+    board_no = int(m.group(0))
+    dealer, vul = _dealer_vul(_txt(tree.css_first(".bh-sub")))
+    deal = _cards_deal(tree.css_first(".boardhead .deal") or tree.css_first("div.deal"),
+                       board_no, dealer, vul)
+    hrefs = [o.attributes.get("value") or "" for o in tree.css("select.brd-sel option")]
+    tables = [_pairs_table(c) for c in cards]
+    return PairsBoard(deal=deal, tables=tables, board_hrefs=[h for h in hrefs if h])
+
+
+def _float(s: str) -> float | None:
+    s = _ws(s).rstrip("%").strip()
+    try:
+        return float(s) if s else None
+    except ValueError:
+        return None
+
+
+def _pairs_table(card: Node) -> PairsTable:
+    def side(cls: str) -> tuple[int, list[str], float | None, float | None]:
+        a = card.css_first(f".pr-cell.{cls} a[href*=qpairid]") \
+            or card.css_first(f".pr-cell.{cls} a")
+        pid = _qint(_href(a), "qpairid") if a is not None else None
+        if pid is None:
+            raise ValueError(f"pairs table without {cls} pair id")
+        names = [_txt(n) for n in card.css(f".pr-cell.{cls} .nfull")]
+        mp = _float(_txt(card.css_first(f".px-cell.{cls} .mpv")))
+        pct = _float(_txt(card.css_first(f".px-cell.{cls} .pcv")))
+        return pid, names, mp, pct
+
+    ns_id, ns_names, mp_ns, pct_ns = side("ns")
+    ew_id, ew_names, mp_ew, pct_ew = side("ew")
+    contract, decl, lead, tricks, sns, sew = _cards_result(card)
+    tbl = card.css_first(".bidpanel table")
+    auction = None
+    if tbl is not None and contract != "Adj":
+        auction = parse_auction_table(tbl, contract)
+    m = re.search(r"\d+", _txt(card.css_first(".tblno")))
+    return PairsTable(
+        section=_txt(card.css_first(".dirchip")),
+        table_no=int(m.group(0)) if m else None,
+        ns_pair_id=ns_id, ew_pair_id=ew_id,
+        ns_players=ns_names, ew_players=ew_names,
+        mp_ns=mp_ns, mp_ew=mp_ew, pct_ns=pct_ns, pct_ew=pct_ew,
+        contract=contract, declarer=decl, lead=lead, tricks=tricks,
+        score_ns=sns, score_ew=sew, auction=auction)
 
 
 @dataclass
@@ -506,24 +816,100 @@ def parse_pairs_phases(raw: bytes | str, tournid: int) -> list[Phase]:
     """TotalPairs.asp phase dropdown: options whose href has this qtournid and a
     qgroupno. Returned in PLAY order (Qualifier first, Final last) -- the page
     lists them most-significant first, so reverse it."""
-    raise NotImplementedError
+    tree = HTMLParser(decode(raw))
+    # Candidate selects: every option carries this qtournid + a qgroupno and is
+    # not a board picker. The event dropdown (TotalPairs.asp?qtournid=...) is
+    # told apart by spanning several tournids, or by its TotalPairs.asp prefix
+    # (phase options are bare '?qtournid=...' queries).
+    cands: list[list[tuple[str, str]]] = []
+    for opts in _option_groups(tree):
+        rows = [(v, t) for v, t in opts if v]
+        if not rows or any("qboard=" in v.lower() for v, _ in rows):
+            continue
+        if any(_qint(v, "qgroupno") is None for v, _ in rows):
+            continue
+        if {_qint(v, "qtournid") for v, _ in rows} != {tournid}:
+            continue
+        cands.append(rows)
+    bare = [c for c in cands
+            if not all(v.lower().lstrip("./").startswith("totalpairs.asp") for v, _ in c)]
+    chosen = bare[0] if bare else (cands[-1] if len(cands) > 1 else None)
+    if chosen is None:
+        return []
+    out: list[Phase] = []
+    seen: set[str] = set()
+    for v, t in chosen:
+        code = str(_qint(v, "qgroupno"))
+        if code in seen:
+            continue
+        seen.add(code)
+        out.append(Phase(code=code, name=t, last_session=_qint(v, "qroundno")))
+    out.reverse()
+    return out
+
+
+def _option_groups(tree: HTMLParser) -> list[list[tuple[str, str]]]:
+    """[(value, text) ...] per <select>; all options as one group if no select."""
+    groups = [[((o.attributes.get("value") or "").strip(), _txt(o))
+               for o in sel.css("option")] for sel in tree.css("select")]
+    if not groups:
+        groups.append([((o.attributes.get("value") or "").strip(), _txt(o))
+                       for o in tree.css("option")])
+    return groups
 
 
 def parse_pairs_event_names(raw: bytes | str) -> dict[int, str]:
-    """TotalPairs.asp event dropdown -> {tournid: 'Senior Pairs', ...}."""
-    raise NotImplementedError
+    """Event dropdown -> {tournid: 'Senior Pairs', ...}.
+
+    The event <select> is the one whose options span several qtournids. On
+    TotalPairs pages its options are bare '?qtournid=...' queries (same shape as
+    the phase dropdown); on BoardAcrossPairs pages they start 'TotalPairs.asp?'.
+    """
+    tree = HTMLParser(decode(raw))
+    out: dict[int, str] = {}
+    for opts in _option_groups(tree):
+        rows = [(v, t) for v, t in opts if v and _qint(v, "qtournid") is not None]
+        if not rows:
+            continue
+        tids = {_qint(v, "qtournid") for v, _ in rows}
+        prefixed = all("totalpairs.asp" in v.lower() for v, _ in rows)
+        if len(tids) < 2 and not prefixed:
+            continue
+        for v, t in rows:
+            out.setdefault(_qint(v, "qtournid"), t)
+    return out
 
 
 def parse_ko_phases(raw: bytes | str, tournid: int) -> list[Phase]:
     """Knockoutphase.asp dropdown: options for this qtournid, page order
     (earliest phase first, e.g. 64, 32, 16, QF, SF, FF)."""
-    raise NotImplementedError
+    tree = HTMLParser(decode(raw))
+    out: list[Phase] = []
+    seen: set[str] = set()
+    for o in tree.css("option"):
+        v = (o.attributes.get("value") or "").strip()
+        if _qint(v, "qtournid") != tournid:
+            continue
+        m = re.search(r"[?&]qphase=([^&#\s]+)", v, re.I)
+        if not m or m.group(1) in seen:
+            continue
+        seen.add(m.group(1))
+        out.append(Phase(code=m.group(1), name=_txt(o), last_session=None))
+    return out
 
 
 def parse_ko_match_ids(raw: bytes | str) -> list[int]:
     """Knockoutphase.asp: distinct BoardDetailsKO qmatchid values, page order.
     One id per (match, segment)."""
-    raise NotImplementedError
+    out: list[int] = []
+    seen: set[int] = set()
+    for m in re.finditer(r"BoardDetailsKO\.asp\?(?:[^\"'<>\s]*?&(?:amp;)?)?qmatchid=(\d+)",
+                         decode(raw), re.I):
+        mid = int(m.group(1))
+        if mid not in seen:
+            seen.add(mid)
+            out.append(mid)
+    return out
 
 
 class EmptyPage(ValueError):

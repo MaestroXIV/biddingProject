@@ -56,3 +56,27 @@ no server and no internet:
 
 Send that one file to anyone; they double-click it to open in a modern browser
 (Chrome/Edge/Firefox/Safari). Nothing to install.
+
+## Pairs and knockout events
+
+The browse UI and the offline file show all three event kinds; the tournament
+dropdown marks them (`… · pairs`, `… · KO`), and a **Stage** filter (Qualifier,
+Final, Phase of 16 …) appears once the DB has staged rounds.
+
+- **KO**: rendered like teams (Open/Closed rooms, seats), but the round shows
+  its label (`Phase of 16 · Seg 2`) wherever teams events show `R3`.
+- **Pairs**: each result is one table — `Sec 1 Tbl 1 · NS pair vs EW pair` —
+  with the board's matchpoints and percentage for NS and EW instead of rooms;
+  rounds show `Qualifier · Session 3`. Pair names link to the pair dashboard.
+  The auction header shows no player names, because who sat N vs S inside a
+  pair isn't published.
+- Tables without a recorded auction (or with an adjusted score, `Adj`) still
+  appear in the traveller with a muted "no bidding recorded"; searches that
+  filter on the auction naturally skip them.
+- **Player** opener counts cover teams/KO only (pairs events count at pair level
+  only — a note says so). The **Pair** dashboard includes pairs events; those
+  openings land in a separate **pair** column.
+
+The UI works on old and migrated DBs alike. `BOARDBASE_DB=/path/to.db` points
+the server at another DB; `share/build.py --db X --out Y` builds the offline
+file from any DB.

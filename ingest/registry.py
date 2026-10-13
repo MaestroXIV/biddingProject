@@ -6,10 +6,12 @@ data/tournaments.json and merged in at import (so `bb ingest --base ...` events
 persist across runs)."""
 from __future__ import annotations
 
+import fnmatch
 import json
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
+KINDS = ("teams", "ko", "pairs")
 USER_REGISTRY = Path(__file__).resolve().parent.parent / "data" / "tournaments.json"
 
 
@@ -45,11 +47,14 @@ def _load_user() -> dict:
     if not USER_REGISTRY.exists():
         return {}
     data = json.loads(USER_REGISTRY.read_text())
+    # entries written before 'kind' existed load as 'teams' (dataclass default)
     return {d["key"]: Tournament(**d) for d in data}
 
 
 def register(t: Tournament) -> None:
     """Persist a user-added tournament to data/tournaments.json (idempotent)."""
+    if t.kind not in KINDS:
+        raise ValueError(f"unknown tournament kind {t.kind!r} (expected {KINDS})")
     existing = []
     if USER_REGISTRY.exists():
         existing = [d for d in json.loads(USER_REGISTRY.read_text())
@@ -61,3 +66,21 @@ def register(t: Tournament) -> None:
 
 
 TOURNAMENTS = {**_BUILTIN, **_load_user()}
+
+
+def select_keys(patterns: list[str], keys=None) -> list[str]:
+    """Expand registry keys / shell-style globs ('katowice26_*') in order.
+
+    Plain keys must exist; a glob that matches nothing is an error too (a typo
+    should not silently ingest nothing). Duplicates are dropped."""
+    pool = list(TOURNAMENTS if keys is None else keys)
+    out: list[str] = []
+    for pat in patterns:
+        if any(ch in pat for ch in "*?["):
+            hits = [k for k in pool if fnmatch.fnmatchcase(k, pat)]
+        else:
+            hits = [pat] if pat in pool else []
+        if not hits:
+            raise KeyError(f"no registered tournament matches {pat!r}")
+        out.extend(h for h in hits if h not in out)
+    return out

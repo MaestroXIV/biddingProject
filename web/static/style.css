@@ -233,3 +233,17 @@ table.auc td.open { background: var(--amber-bg); box-shadow: inset 0 0 0 1px var
   .blk { color: #dfe6f0; }
   button, .actions button { box-shadow: none; }
 }
+
+/* ---------- pairs / KO ---------- */
+.dir { font-size: 9.5px; font-weight: 700; letter-spacing: .04em; color: var(--text-3); }
+.mp { margin-left: 6px; padding-left: 6px; border-left: 1px solid var(--border-2);
+  font-variant-numeric: tabular-nums; color: var(--text); white-space: nowrap; }
+.mprow { display: flex; gap: 14px; font-size: 12px; color: var(--text-2);
+  font-variant-numeric: tabular-nums; margin: 2px 0 4px; }
+.mprow b { color: var(--text); }
+.dim { color: var(--text-3); }
+.nobid { margin: 8px 0 2px; padding: 7px 9px; font-size: 12px; font-style: italic;
+  color: var(--text-3); background: var(--surface-2); border: 1px dashed var(--border-2);
+  border-radius: var(--radius-sm); text-align: center; }
+.note { font-size: 12px; color: var(--text-3); margin: 8px 0; }
+.room.tbl { text-transform: none; letter-spacing: 0; }

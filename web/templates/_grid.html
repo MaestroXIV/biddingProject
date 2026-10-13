@@ -2,7 +2,7 @@
 <table class="facet grid">
   <thead><tr>
     <th>opening</th><th>total</th>
-    {% for pid in member_ids %}<th>{{ names[pid].split(' ')[0]|title }}</th>{% endfor %}
+    {% for pid in member_ids %}<th>{% if pid %}{{ names[pid].split(' ')[0]|title }}{% else %}<span title="pairs events: which member opened isn't published">pair</span>{% endif %}</th>{% endfor %}
     {% for p in POS %}<th>{{ p }}{{ {1:'st',2:'nd',3:'rd',4:'th'}[p] }}</th>{% endfor %}
     {% for v in VULS %}<th>{{ v }}</th>{% endfor %}
   </tr></thead>

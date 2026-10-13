@@ -11,3 +11,4 @@ data/chromeprofile/
 !data/tournaments.json
 dist/
 share/*.db
+.sync/

@@ -1,5 +1,8 @@
 """Integrity checks (SPEC 9 M1 DoD): 52 cards/deal, auctions start at the
-dealer, instance<->seating consistency. Returns a list of human-readable
+dealer, instance<->seating consistency. Valid for every tournament kind:
+instances without an auction are legitimate (cards layout / pairs tables with
+no bidding recorded, adjusted scores) and are not flagged; pairs seating is
+synthetic but complete (4 seats per match). Returns a list of human-readable
 problems (empty = all good)."""
 from __future__ import annotations
 
@@ -46,11 +49,21 @@ def check(conn: sqlite3.Connection) -> list[str]:
     bad_seat = conn.execute(
         "SELECT COUNT(*) FROM ("
         "  SELECT bi.id FROM board_instance bi "
-        "  JOIN seating s ON s.match_id=bi.match_id AND s.room=bi.room "
+        "  LEFT JOIN seating s ON s.match_id=bi.match_id AND s.room=bi.room "
         "  GROUP BY bi.id HAVING COUNT(DISTINCT s.seat) < 4)"
     ).fetchone()[0]
     if bad_seat:
         problems.append(f"{bad_seat} board_instances missing full seating")
+
+    # pairs seating is synthetic (seats_known=0): no player-level opener allowed
+    guessed = conn.execute(
+        "SELECT COUNT(*) FROM auction a JOIN board_instance bi "
+        "ON bi.id=a.board_instance_id JOIN match m ON m.id=bi.match_id "
+        "WHERE m.seats_known=0 AND a.opener_player_id IS NOT NULL"
+    ).fetchone()[0]
+    if guessed:
+        problems.append(f"{guessed} auctions attribute an opener on a "
+                        "seats-unknown (pairs) match")
 
     # every auction's instance exists (referential)
     orphan = conn.execute(

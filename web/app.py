@@ -27,8 +27,11 @@ templates.env.filters["call"] = rnd.call_html
 templates.env.globals["auction_grid"] = rnd.auction_grid
 templates.env.globals["auction_oneliner"] = rnd.auction_oneliner
 templates.env.globals["SEATS_WNES"] = rnd.SEATS_WNES
+templates.env.globals["tlabel"] = q.tournament_label
+templates.env.filters["pct"] = rnd.pct
+templates.env.filters["mp"] = rnd.mp
 
-_CARRY = ("tournament", "player", "player_role", "partner", "pair_side",
+_CARRY = ("tournament", "stage", "player", "player_role", "partner", "pair_side",
           "dealer", "vul", "round_from", "round_to")
 
 
@@ -47,7 +50,7 @@ PAGE = 40
 
 
 def _filters(params) -> dict:
-    keys = ("tournament", "player", "player_role", "partner", "pair_side",
+    keys = ("tournament", "stage", "player", "player_role", "partner", "pair_side",
             "opening_call", "position", "dealer", "vul", "competitive",
             "contract", "declarer", "round_from", "round_to", "seq")
     return {k: (params.get(k) or "").strip() for k in keys}
@@ -67,7 +70,7 @@ def home(request: Request):
         "request": request, "f": f, "results": results, "total": total,
         "page": page, "page_size": PAGE, "has_query": has_query,
         "tournaments": q.tournaments(conn), "opening_calls": q.opening_calls(conn),
-        "qs": params,
+        "stages": q.stages(conn), "qs": params,
     }
     conn.close()
     return templates.TemplateResponse(request, "index.html", ctx)
@@ -111,10 +114,12 @@ def player(request: Request):
 
     def explore_for(call):
         return "/explore?" + urlencode({**base, "seq": call})
+    events = q.player_events(conn, pid)
     ctx = {
         "request": request, "player": {"id": pid, "name": canonical},
+        "has_pairs": any(e["kind"] == "pairs" for e in events),
         "grid": grid, "names": {pid: canonical}, "tournament": tournament,
-        "events": q.player_events(conn, pid),
+        "events": events,
         "partners": q.player_partners(conn, pid, tournament),
         "explore_for": explore_for,
         "boards_all": "/?" + urlencode(base),
@@ -149,13 +154,18 @@ def pair(request: Request):
     def explore_for(call):
         return "/explore?" + urlencode({**base, "seq": call})
     pair_search = "/?" + urlencode(base)
+    events = q.player_events(conn, id1)
+    member_ids = [id1, id2]
+    if any(g["by_player"].get(0) for g in grid):
+        member_ids.append(0)        # pairs events: opener within the pair unknown
     ctx = {
         "request": request,
         "pair": {"id1": id1, "id2": id2, "name1": name1, "name2": name2,
                  "n1_in": n1, "n2_in": n2},
         "grid": grid, "names": {id1: name1, id2: name2},
-        "member_ids": [id1, id2], "tournament": tournament,
-        "events": q.player_events(conn, id1),
+        "member_ids": member_ids, "tournament": tournament,
+        "events": events,
+        "has_pairs": any(e["kind"] == "pairs" for e in events),
         "explore_for": explore_for, "pair_search": pair_search,
         "tournaments": q.tournaments(conn), "POS": q._POS, "VULS": q._VULS,
     }
@@ -174,11 +184,19 @@ def deal(request: Request, deal_id: int, opening_call: str = ""):
     rows = []
     for r in insts:
         players = q.players_at(conn, r["match_id"], r["room"])
-        rows.append({
+        row = {
             "r": r,
             "players": players,
             "calls_list": r["calls"].split() if r["calls"] else [],
-        })
+            "pairs": header["kind"] == "pairs",
+        }
+        if row["pairs"]:
+            # pair members as listed (N/S and E/W order inside a pair unknown)
+            for side, (a, b) in (("ns", ("N", "S")), ("ew", ("E", "W"))):
+                if players.get(a) and players.get(b):
+                    row[side + "_url"] = "/pair?" + urlencode(
+                        {"p1": players[a], "p2": players[b]})
+        rows.append(row)
     ctx = {
         "request": request, "d": header, "rows": rows,
         "opening_calls": q.deal_opening_calls(conn, deal_id),
@@ -201,14 +219,17 @@ def export_csv(request: Request):
     w.writerow(["tournament", "round", "board", "room", "home_team",
                 "visiting_team", "dealer", "vul", "opening_call", "opener_seat",
                 "contract", "declarer", "tricks", "score_ns", "score_ew",
-                "auction", "source_url"])
+                "auction", "source_url", "round_label", "table_label",
+                "mp_ns", "mp_ew", "pct_ns", "pct_ew"])
     for r in results:
         w.writerow([r["tslug"], r["round_no"], r["board_no"], r["room"],
                     r["home_team"], r["visiting_team"], r["dealer"], r["vul"],
                     r["opening_call"] or "", r["opener_seat"] or "",
                     r["contract"], r["declarer"], r["tricks"],
                     r["score_ns"], r["score_ew"],
-                    " ".join(r["calls_list"]), r["source_url"]])
+                    " ".join(r["calls_list"]), r["source_url"],
+                    r["round_label"] or "", r["table_label"] or "",
+                    r["mp_ns"], r["mp_ew"], r["pct_ns"], r["pct_ew"]])
     buf.seek(0)
     return StreamingResponse(
         iter([buf.getvalue()]), media_type="text/csv",

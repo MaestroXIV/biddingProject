@@ -1,6 +1,8 @@
 """Read-only queries over boardbase.db for the browse UI (SPEC 7.1/7.2)."""
 from __future__ import annotations
 
+import os
+import re
 import sqlite3
 import statistics
 from pathlib import Path
@@ -26,10 +28,76 @@ DB_PATH = Path(__file__).resolve().parent.parent / "data" / "boardbase.db"
 _SEAT_HAND = {"N": "hand_n", "E": "hand_e", "S": "hand_s", "W": "hand_w"}
 
 
+def db_path() -> Path:
+    """DB file to browse; BOARDBASE_DB overrides (read at connect time)."""
+    return Path(os.environ.get("BOARDBASE_DB") or DB_PATH)
+
+
+class _Conn(sqlite3.Connection):
+    x: dict
+
+
+# Columns added for pairs/KO (PAIRS_KO.md §2). The UI opens the DB read-only, so
+# an un-migrated DB keeps the old shape: substitute a constant when a column is
+# missing so every query works on both.
+_OPTIONAL = {
+    "kind": ("tournament", "kind", "COALESCE(t.kind,'teams')", "'teams'"),
+    "stage": ("round", "stage", "r.stage", "NULL"),
+    "seats_known": ("match", "seats_known", "COALESCE(m.seats_known,1)", "1"),
+    "mp_ns": ("board_instance", "mp_ns", "bi.mp_ns", "NULL"),
+    "mp_ew": ("board_instance", "mp_ew", "bi.mp_ew", "NULL"),
+    "pct_ns": ("board_instance", "pct_ns", "bi.pct_ns", "NULL"),
+    "pct_ew": ("board_instance", "pct_ew", "bi.pct_ew", "NULL"),
+    "table_label": ("board_instance", "table_label", "bi.table_label", "NULL"),
+}
+
+
+def _exprs(conn) -> dict:
+    have: dict[str, set] = {}
+    out = {}
+    for key, (table, col, expr, fallback) in _OPTIONAL.items():
+        if table not in have:
+            have[table] = {r[1] for r in conn.execute(f"PRAGMA table_info({table})")}
+        out[key] = expr if col in have[table] else fallback
+    return out
+
+
+def X(conn) -> dict:
+    x = getattr(conn, "x", None)
+    if x is None:
+        x = _exprs(conn)
+        try:
+            conn.x = x
+        except AttributeError:
+            pass
+    return x
+
+
 def connect() -> sqlite3.Connection:
-    conn = sqlite3.connect(f"file:{DB_PATH}?mode=ro", uri=True)
+    conn = sqlite3.connect(f"file:{db_path()}?mode=ro", uri=True, factory=_Conn)
     conn.row_factory = sqlite3.Row
+    conn.x = _exprs(conn)
     return conn
+
+
+KIND_SUFFIX = {"pairs": " · pairs", "ko": " · KO"}
+
+
+def tournament_label(t) -> str:
+    """Dropdown text: name plus the event kind for non-teams events."""
+    return f"{t['name']}{KIND_SUFFIX.get(t['kind'] or 'teams', '')}"
+
+
+def round_disp(kind, label, number) -> str:
+    """'R3' for teams; the round label ('Phase of 16 · Seg 2') for KO/pairs."""
+    if kind in ("ko", "pairs") and label:
+        return label
+    return f"R{number}"
+
+
+def _table_sort_key(label):
+    nums = [int(n) for n in re.findall(r"\d+", label or "")]
+    return (0, nums) if nums else (1, [])
 
 
 def _resolve_player_ids(conn, name: str) -> list[int]:
@@ -45,7 +113,15 @@ def _resolve_player_ids(conn, name: str) -> list[int]:
 
 def tournaments(conn):
     return conn.execute(
-        "SELECT slug, name FROM tournament ORDER BY id").fetchall()
+        f"SELECT slug, name, {X(conn)['kind']} AS kind FROM tournament t "
+        "ORDER BY id").fetchall()
+
+
+def stages(conn):
+    if X(conn)["stage"] == "NULL":
+        return []
+    return [r[0] for r in conn.execute(
+        "SELECT DISTINCT stage FROM round WHERE stage IS NOT NULL ORDER BY stage")]
 
 
 def opening_calls(conn):
@@ -95,6 +171,8 @@ def build_filters(conn, f: dict):
         seq = " ".join(f["seq"].split())
         col = "a.from_opener" if "(" in seq else "a.uncontested_key"
         add(f"{col} IS NOT NULL AND ({col} = ? OR {col} LIKE ?)", seq, seq + " %")
+    if f.get("stage") and X(conn)["stage"] != "NULL":
+        add("r.stage = ?", f["stage"])
     if f.get("round_from"):
         add("r.number >= ?", int(f["round_from"]))
     if f.get("round_to"):
@@ -137,9 +215,14 @@ def build_filters(conn, f: dict):
 
 def search(conn, f: dict, limit: int = 50, offset: int = 0):
     where, params = build_filters(conn, f)
+    x = X(conn)
     total = conn.execute(f"SELECT COUNT(*) {BASE}{where}", params).fetchone()[0]
     sql = f"""
     SELECT bi.id AS bi_id, d.id AS deal_id, t.slug AS tslug, t.name AS tname,
+           {x['kind']} AS kind, r.label AS round_label,
+           {x['mp_ns']} AS mp_ns, {x['mp_ew']} AS mp_ew,
+           {x['pct_ns']} AS pct_ns, {x['pct_ew']} AS pct_ew,
+           {x['table_label']} AS table_label,
            r.number AS round_no, d.board_no, d.dealer, d.vul,
            d.hand_n, d.hand_e, d.hand_s, d.hand_w, d.source_url,
            bi.room, bi.contract, bi.declarer, bi.tricks, bi.score_ns, bi.score_ew,
@@ -158,18 +241,27 @@ def _augment(row: sqlite3.Row) -> dict:
     d["calls_list"] = row["calls"].split() if row["calls"] else []
     seat = row["opener_seat"]
     d["opener_hand"] = row[_SEAT_HAND[seat]] if seat in _SEAT_HAND else None
+    d["rdisp"] = round_disp(row["kind"], row["round_label"], row["round_no"])
     return d
 
 
 # --- deal traveller ---------------------------------------------------------
 
 def deal_header(conn, deal_id: int):
-    return conn.execute("""
-        SELECT d.*, r.number AS round_no, t.slug AS tslug, t.name AS tname,
-               t.asp_base_url
+    row = conn.execute(f"""
+        SELECT d.*, r.number AS round_no, r.label AS round_label,
+               {X(conn)['stage']} AS stage, t.slug AS tslug, t.name AS tname,
+               t.asp_base_url, {X(conn)['kind']} AS kind
         FROM deal d JOIN round r ON r.id=d.round_id
         JOIN tournament t ON t.id=r.tournament_id WHERE d.id=?""",
         (deal_id,)).fetchone()
+    if row is None:
+        return None
+    h = dict(row)
+    h["round_title"] = (row["round_label"]
+                        if row["kind"] in ("ko", "pairs") and row["round_label"]
+                        else f"Round {row['round_no']}")
+    return h
 
 
 def deal_instances(conn, deal_id: int, opening_call: str = ""):
@@ -178,9 +270,15 @@ def deal_instances(conn, deal_id: int, opening_call: str = ""):
     if opening_call:
         where += " AND a.opening_call = ?"
         params.append(opening_call)
-    return conn.execute(f"""
+    x = X(conn)
+    rows = conn.execute(f"""
         SELECT bi.id AS bi_id, bi.room, bi.contract, bi.declarer, bi.tricks,
                bi.score_ns, bi.score_ew, m.ext_match_id, m.id AS match_id,
+               {x['mp_ns']} AS mp_ns, {x['mp_ew']} AS mp_ew,
+               {x['pct_ns']} AS pct_ns, {x['pct_ew']} AS pct_ew,
+               {x['table_label']} AS table_label,
+               {x['seats_known']} AS seats_known,
+               a.board_instance_id IS NOT NULL AS has_auction,
                ht.name AS home_team, vt.name AS visiting_team,
                a.calls, a.opening_call, a.opener_seat, a.opener_rel_pos,
                ns.player_lo, r.number AS round_no
@@ -193,6 +291,9 @@ def deal_instances(conn, deal_id: int, opening_call: str = ""):
         LEFT JOIN instance_side ns ON ns.board_instance_id=bi.id AND ns.side='NS'
         {where}
         ORDER BY m.ext_match_id, bi.room""", params).fetchall()
+    if any(r["table_label"] for r in rows):     # pairs: Sec/Tbl order
+        rows = sorted(rows, key=lambda r: _table_sort_key(r["table_label"]))
+    return rows
 
 
 def deal_opening_calls(conn, deal_id: int):
@@ -238,7 +339,7 @@ def explore(conn, f: dict, seq: str, next_hcp_min: str = "", next_hcp_max: str =
     SELECT {key_col} AS key, a.opener_rel_pos AS orp, d.dealer AS dealer,
            d.hand_n, d.hand_e, d.hand_s, d.hand_w,
            bi.id AS bi_id, d.id AS deal_id, d.board_no, r.number AS round_no,
-           t.slug AS tslug
+           t.slug AS tslug, r.label AS round_label, {X(conn)['kind']} AS kind
     {BASE}{full_where}"""
     rows = conn.execute(sql, params + prefix_params).fetchall()
 
@@ -273,6 +374,8 @@ def explore(conn, f: dict, seq: str, next_hcp_min: str = "", next_hcp_max: str =
         if len(b["samples"]) < 6:
             b["samples"].append({"deal_id": r["deal_id"], "tslug": r["tslug"],
                                  "round_no": r["round_no"], "board_no": r["board_no"],
+                                 "rdisp": round_disp(r["kind"], r["round_label"],
+                                                     r["round_no"]),
                                  "seat": seat, "hand": hand, "hcp": h})
 
     out = []
@@ -323,8 +426,11 @@ def opening_grid(conn, opener_ids: list[int], pair_key: str | None = None,
     joins = ("JOIN board_instance bi ON bi.id=a.board_instance_id "
              "JOIN match m ON m.id=bi.match_id JOIN round r ON r.id=m.round_id "
              "JOIN tournament t ON t.id=r.tournament_id")
+    ids_in = f"a.opener_player_id IN ({','.join('?'*len(opener_ids))})"
+    # pairs events leave opener_player_id NULL (seats inside a pair unknown);
+    # for a pair those openings still belong to the pair -> pid 0 ("pair" column)
     conds = ["a.opening_call IS NOT NULL",
-             f"a.opener_player_id IN ({','.join('?'*len(opener_ids))})"]
+             f"({ids_in} OR a.opener_player_id IS NULL)" if pair_key else ids_in]
     params: list = list(opener_ids)
     if pair_key:
         joins += (" JOIN instance_side s ON s.board_instance_id=a.board_instance_id "
@@ -348,14 +454,15 @@ def opening_grid(conn, opener_ids: list[int], pair_key: str | None = None,
         g["by_pos"][r["pos"]] = g["by_pos"].get(r["pos"], 0) + r["n"]
         if r["vul"]:
             g["by_vul"][r["vul"]] = g["by_vul"].get(r["vul"], 0) + r["n"]
-        g["by_player"][r["pid"]] = g["by_player"].get(r["pid"], 0) + r["n"]
+        pid = r["pid"] or 0
+        g["by_player"][pid] = g["by_player"].get(pid, 0) + r["n"]
     rows = sorted(grid.values(), key=lambda g: -g["total"])
     return rows
 
 
 def player_events(conn, player_id: int):
-    return conn.execute("""
-        SELECT DISTINCT t.slug, t.name FROM seating se
+    return conn.execute(f"""
+        SELECT DISTINCT t.slug, t.name, {X(conn)['kind']} AS kind FROM seating se
         JOIN match m ON m.id=se.match_id JOIN round r ON r.id=m.round_id
         JOIN tournament t ON t.id=r.tournament_id WHERE se.player_id=?
         ORDER BY t.id""", (player_id,)).fetchall()

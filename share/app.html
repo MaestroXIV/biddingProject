@@ -51,6 +51,29 @@ async function gunzip(bytes){
 }
 
 let DB=null;
+// Columns added for pairs/KO (PAIRS_KO.md §2); an older DB lacks them, so use a
+// constant instead (mirrors web/queries.py _OPTIONAL). Filled at boot.
+let X={kind:"'teams'",stage:"NULL",seats_known:"1",mp_ns:"NULL",mp_ew:"NULL",pct_ns:"NULL",pct_ew:"NULL",table_label:"NULL"};
+function detectColumns(){
+  const OPT={kind:["tournament","kind","COALESCE(t.kind,'teams')"],stage:["round","stage","r.stage"],
+    seats_known:["match","seats_known","COALESCE(m.seats_known,1)"],mp_ns:["board_instance","mp_ns","bi.mp_ns"],
+    mp_ew:["board_instance","mp_ew","bi.mp_ew"],pct_ns:["board_instance","pct_ns","bi.pct_ns"],
+    pct_ew:["board_instance","pct_ew","bi.pct_ew"],table_label:["board_instance","table_label","bi.table_label"]};
+  const have={};
+  for(const [k,[tb,col,expr]] of Object.entries(OPT)){
+    if(!have[tb]) have[tb]=new Set(q(`PRAGMA table_info(${tb})`).map(r=>r.name));
+    if(have[tb].has(col)) X[k]=expr;
+  }
+}
+const KIND_SUFFIX={pairs:" · pairs",ko:" · KO"};
+const tlabel=t=>t.name+(KIND_SUFFIX[t.kind]||"");
+const roundDisp=(kind,label,no)=>(kind==="ko"||kind==="pairs")&&label?label:`R${no}`;
+const num=v=>v==null?"":(+v).toFixed(2).replace(/\.?0+$/,"");
+const pct=v=>v==null?"":num(v)+"%";
+function tableKey(label){const n=(label||"").match(/\d+/g);return n?n.map(Number):null;}
+function cmpTable(a,b){const x=tableKey(a.table_label),y=tableKey(b.table_label);
+  if(!x||!y) return (x?0:1)-(y?0:1);
+  for(let i=0;i<Math.max(x.length,y.length);i++){const d=(x[i]||0)-(y[i]||0);if(d)return d;} return 0;}
 
 // ---- tiny query helper -----------------------------------------------------
 function q(sql, params){
@@ -131,6 +154,7 @@ function buildFilters(f){
   if(f.seq&&f.seq.trim()){ const s=f.seq.trim().replace(/\s+/g," ");
     const col=s.includes("(")?"a.from_opener":"a.uncontested_key";
     add(`${col} IS NOT NULL AND (${col} = ? OR ${col} LIKE ?)`, s, s+" %"); }
+  if(f.stage&&X.stage!=="NULL") add("r.stage = ?",f.stage);
   if(f.round_from) add("r.number >= ?",+f.round_from);
   if(f.round_to) add("r.number <= ?",+f.round_to);
   const pids=resolveIds(f.player||"");
@@ -157,17 +181,20 @@ function buildFilters(f){
 const SEAT_HAND={N:"hand_n",E:"hand_e",S:"hand_s",W:"hand_w"};
 
 // ---- data accessors --------------------------------------------------------
-const tournaments=()=>q("SELECT slug,name FROM tournament ORDER BY id");
+const tournaments=()=>q(`SELECT slug,name,${X.kind} kind FROM tournament t ORDER BY id`);
+const tournOpts=()=>tournaments().map(t=>[t.slug,tlabel(t)]);
+const stages=()=>X.stage==="NULL"?[]:q("SELECT DISTINCT stage s FROM round WHERE stage IS NOT NULL ORDER BY stage").map(r=>r.s);
 const openingCalls=()=>q("SELECT DISTINCT opening_call oc FROM auction WHERE opening_call IS NOT NULL ORDER BY length(opening_call),opening_call").map(r=>r.oc);
 
 function search(f,limit=40,offset=0){
   const {where,params}=buildFilters(f);
   const total=one(`SELECT COUNT(*) c ${BASE}${where}`,params).c;
-  const rows=q(`SELECT bi.id bi_id,d.id deal_id,t.slug tslug,r.number round_no,d.board_no,d.dealer,d.vul,
+  const rows=q(`SELECT bi.id bi_id,d.id deal_id,t.slug tslug,r.number round_no,${X.kind} kind,r.label round_label,
+     ${X.mp_ns} mp_ns,${X.mp_ew} mp_ew,${X.pct_ns} pct_ns,${X.pct_ew} pct_ew,${X.table_label} table_label,d.board_no,d.dealer,d.vul,
      d.hand_n,d.hand_e,d.hand_s,d.hand_w,d.source_url,bi.room,bi.contract,bi.declarer,bi.tricks,bi.score_ns,bi.score_ew,
      ht.name home_team,vt.name visiting_team,a.calls,a.from_opener,a.opening_call,a.opener_seat,a.opener_rel_pos,a.competitive
      ${BASE}${where} ORDER BY t.id,r.number,d.board_no,bi.room LIMIT ? OFFSET ?`,[...params,limit,offset]);
-  rows.forEach(r=>{ r.calls_list=r.calls?r.calls.split(" "):[]; r.opener_hand=r.opener_seat?r[SEAT_HAND[r.opener_seat]]:null; });
+  rows.forEach(r=>{ r.calls_list=r.calls?r.calls.split(" "):[]; r.opener_hand=r.opener_seat?r[SEAT_HAND[r.opener_seat]]:null; r.rdisp=roundDisp(r.kind,r.round_label,r.round_no); });
   return {total,rows};
 }
 
@@ -183,7 +210,7 @@ function parseHash(){
 }
 function setNav(v){document.querySelectorAll("#nav a").forEach(a=>a.classList.toggle("active",a.dataset.v===v));}
 function link(view,f){const p=new URLSearchParams(Object.entries(f).filter(([k,v])=>v));return `#/${view}${p.toString()?"?"+p:""}`;}
-const CARRY=["tournament","player","player_role","partner","pair_side","dealer","vul","round_from","round_to"];
+const CARRY=["tournament","stage","player","player_role","partner","pair_side","dealer","vul","round_from","round_to"];
 function carry(f){const o={};CARRY.forEach(k=>{if(f[k])o[k]=f[k];});return o;}
 
 function optSel(name,label,opts,cur,extra=""){
@@ -194,9 +221,10 @@ function inp(name,label,cur,ph=""){return `<label>${label}<input name="${name}" 
 
 function viewSearch(f){
   setNav("search");
-  const TS=tournaments(), OC=openingCalls();
+  const TS=tournOpts(), OC=openingCalls(), ST=stages();
   const form=`<form class="filters" onsubmit="return submitForm(event,'search')"><div class="grid">
-    ${optSel("tournament","Tournament",TS.map(t=>[t.slug,t.name]),f.tournament)}
+    ${optSel("tournament","Tournament",TS,f.tournament)}
+    ${ST.length?optSel("stage","Stage",ST,f.stage):""}
     ${inp("player","Player",f.player,"KLUKOWSKI")}
     ${optSel("player_role","Role",[["any","any seat"],["opener","opener only"]],f.player_role||"any")}
     ${inp("partner","Partner (pair)",f.partner,"KALITA")}
@@ -229,28 +257,30 @@ function viewSearch(f){
 function cardHtml(r){
   const pos=r.opener_rel_pos?`${r.opener_rel_pos}${ORD[r.opener_rel_pos]||""}`:"";
   return `<div class="card">
-    <div class="chead"><a href="#/deal/${r.deal_id}">${r.tslug} · R${r.round_no} · Board ${r.board_no}</a>
-      <span class="room">${r.room}</span><span class="teams">${esc(r.home_team)} vs ${esc(r.visiting_team)}</span></div>
+    <div class="chead"><a href="#/deal/${r.deal_id}">${esc(r.tslug)} · ${esc(r.rdisp)} · Board ${r.board_no}</a>
+      ${r.kind==="pairs"
+        ?`<span class="room tbl">${esc(r.table_label||"table ?")}</span><span class="teams"><span class="dir">NS</span> ${esc(r.home_team)} vs <span class="dir">EW</span> ${esc(r.visiting_team)}</span>`
+        :`<span class="room">${r.room}</span><span class="teams">${esc(r.home_team)} vs ${esc(r.visiting_team)}</span>`}</div>
     <div class="cmeta">Dealer ${r.dealer} · ${r.vul}${r.opening_call?` · opened <b>${callHtml(r.opening_call)}</b> (${r.opener_seat}, ${pos})`:""}${r.competitive?" · competitive":""}</div>
     ${r.opener_hand?`<div class="ohand">opener ${r.opener_seat}: ${handHtml(r.opener_hand)}</div>`:""}
-    <div class="auction">${oneliner(r.from_opener,r.calls_list)}</div>
-    <div class="cfoot"><span>${esc(r.contract)}${r.declarer?` by ${r.declarer}`:""}${r.tricks!=null?` · ${r.tricks} tr`:""}${r.score_ns!=null?` · NS ${r.score_ns}`:""}${r.score_ew!=null?` · EW ${r.score_ew}`:""}</span>
+    ${r.calls_list.length?`<div class="auction">${oneliner(r.from_opener,r.calls_list)}</div>`:`<div class="nobid">no bidding recorded</div>`}
+    <div class="cfoot"><span>${esc(r.contract)}${r.declarer?` by ${r.declarer}`:""}${r.tricks!=null?` · ${r.tricks} tr`:""}${r.score_ns!=null?` · NS ${r.score_ns}`:""}${r.score_ew!=null?` · EW ${r.score_ew}`:""}${(r.pct_ns!=null||r.pct_ew!=null)?`<span class="mp" title="NS ${num(r.mp_ns)} mp · EW ${num(r.mp_ew)} mp">NS ${pct(r.pct_ns)} · EW ${pct(r.pct_ew)}</span>`:""}</span>
       <a class="src" href="${esc(r.source_url)}" target="_blank" rel="noopener">source ↗</a></div></div>`;
 }
 window.exportCsv=function(){
   const {f}=parseHash(); const {rows}=search(f,100000,0);
-  const head=["tournament","round","board","room","home_team","visiting_team","dealer","vul","opening_call","opener_seat","contract","declarer","tricks","score_ns","score_ew","auction","source_url"];
+  const head=["tournament","round","board","room","home_team","visiting_team","dealer","vul","opening_call","opener_seat","contract","declarer","tricks","score_ns","score_ew","auction","source_url","round_label","table_label","mp_ns","mp_ew","pct_ns","pct_ew"];
   const lines=[head.join(",")];
-  rows.forEach(r=>lines.push([r.tslug,r.round_no,r.board_no,r.room,r.home_team,r.visiting_team,r.dealer,r.vul,r.opening_call||"",r.opener_seat||"",r.contract,r.declarer,r.tricks,r.score_ns,r.score_ew,(r.calls_list||[]).join(" "),r.source_url].map(x=>{const s=String(x==null?"":x);return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;}).join(",")));
+  rows.forEach(r=>lines.push([r.tslug,r.round_no,r.board_no,r.room,r.home_team,r.visiting_team,r.dealer,r.vul,r.opening_call||"",r.opener_seat||"",r.contract,r.declarer,r.tricks,r.score_ns,r.score_ew,(r.calls_list||[]).join(" "),r.source_url,r.round_label,r.table_label,r.mp_ns,r.mp_ew,r.pct_ns,r.pct_ew].map(x=>{const s=String(x==null?"":x);return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;}).join(",")));
   const blob=new Blob([lines.join("\n")],{type:"text/csv"}); const u=URL.createObjectURL(blob);
   const a=document.createElement("a"); a.href=u; a.download="boardbase.csv"; a.click(); URL.revokeObjectURL(u);
 };
 
 function viewExplore(f){
   setNav("explore");
-  const TS=tournaments();
+  const TS=tournOpts();
   const form=`<h2>Sequence Explorer</h2><form class="filters" onsubmit="return submitForm(event,'explore')"><div class="grid">
-    ${optSel("tournament","Tournament",TS.map(t=>[t.slug,t.name]),f.tournament)}
+    ${optSel("tournament","Tournament",TS,f.tournament)}
     ${inp("player","Player",f.player,"KLUKOWSKI")}
     ${inp("partner","Partner (pair)",f.partner,"KALITA")}
     ${optSel("pair_side","Pair side",[["either","either side"],["opening","opening side"]],f.pair_side||"either")}
@@ -270,7 +300,7 @@ function viewExplore(f){
       res.branches.map(b=>`<tr><td class="bcall"><a href="${link('explore',{...carry(f),pair_side:f.pair_side,seq:(res.seq+" "+b.call).trim()})}">${callHtml(b.call)}</a></td>
         <td class="bcount">${b.count}</td><td>${b.hcp_min}–${b.hcp_med}–${b.hcp_max}</td>
         <td class="bpat">${b.patterns.join(" · ")}</td>
-        <td class="bsamp">${b.samples.map(s=>`<a href="#/deal/${s.deal_id}" title="${s.seat} ${esc(s.hand)} (${s.hcp} HCP)">${s.tslug} R${s.round_no}·${s.board_no}</a>`).join(", ")}</td></tr>`).join("")+
+        <td class="bsamp">${b.samples.map(s=>`<a href="#/deal/${s.deal_id}" title="${s.seat} ${esc(s.hand)} (${s.hcp} HCP)">${esc(s.tslug)} ${esc(s.rdisp)}·${s.board_no}</a>`).join(", ")}</td></tr>`).join("")+
       `</tbody></table></div>`;
   } else body+=`<p class="hint">No continuations found.</p>`;
   app.innerHTML=form+body;
@@ -283,7 +313,7 @@ function explore(f){
   if(seq){clause+=` AND (${keyCol} = ? OR ${keyCol} LIKE ?)`; pp.push(seq,seq+" %");}
   const full=where+(where?" AND ":" WHERE ")+clause;
   const rows=q(`SELECT ${keyCol} key,a.opener_rel_pos orp,d.dealer dealer,d.hand_n,d.hand_e,d.hand_s,d.hand_w,
-     d.id deal_id,d.board_no,r.number round_no,t.slug tslug ${BASE}${full}`,[...params,...pp]);
+     d.id deal_id,d.board_no,r.number round_no,t.slug tslug,r.label round_label,${X.kind} kind ${BASE}${full}`,[...params,...pp]);
   const hmin=f.next_hcp_min!==undefined&&f.next_hcp_min!==""?+f.next_hcp_min:null;
   const hmax=f.next_hcp_max!==undefined&&f.next_hcp_max!==""?+f.next_hcp_max:null;
   const HAND={N:"hand_n",E:"hand_e",S:"hand_s",W:"hand_w"};
@@ -297,7 +327,7 @@ function explore(f){
     if((hmin!=null&&h<hmin)||(hmax!=null&&h>hmax)) continue;
     const b=branches[nxt]||(branches[nxt]={call:nxt,count:0,hcps:[],pat:{},samples:[]});
     b.count++; b.hcps.push(h); const pt=patternOf(hand); b.pat[pt]=(b.pat[pt]||0)+1;
-    if(b.samples.length<6) b.samples.push({deal_id:r.deal_id,tslug:r.tslug,round_no:r.round_no,board_no:r.board_no,seat,hand,hcp:h});
+    if(b.samples.length<6) b.samples.push({deal_id:r.deal_id,tslug:r.tslug,round_no:r.round_no,rdisp:roundDisp(r.kind,r.round_label,r.round_no),board_no:r.board_no,seat,hand,hcp:h});
   }
   const med=a=>{const s=[...a].sort((x,y)=>x-y);const m=Math.floor(s.length/2);return s.length%2?s[m]:Math.round((s[m-1]+s[m])/2);};
   const out=Object.values(branches).map(b=>({call:b.call,count:b.count,hcp_min:Math.min(...b.hcps),hcp_med:med(b.hcps),hcp_max:Math.max(...b.hcps),
@@ -316,18 +346,20 @@ function resolveOne(name){
 }
 function openingGrid(openerIds,pairKey,tournament){
   let joins=`JOIN board_instance bi ON bi.id=a.board_instance_id JOIN match m ON m.id=bi.match_id JOIN round r ON r.id=m.round_id JOIN tournament t ON t.id=r.tournament_id`;
-  const conds=["a.opening_call IS NOT NULL",`a.opener_player_id IN (${openerIds.map(()=>"?").join(",")})`]; const params=[...openerIds];
+  const idsIn=`a.opener_player_id IN (${openerIds.map(()=>"?").join(",")})`;
+  // pairs events: opener_player_id NULL -> counted for the pair (pid 0, "pair" column)
+  const conds=["a.opening_call IS NOT NULL",pairKey?`(${idsIn} OR a.opener_player_id IS NULL)`:idsIn]; const params=[...openerIds];
   if(pairKey){joins+=` JOIN instance_side s ON s.board_instance_id=a.board_instance_id AND s.side=a.opening_side`;conds.push("s.pair_key=?");params.push(pairKey);}
   if(tournament){conds.push("t.slug=?");params.push(tournament);}
   const rows=q(`SELECT a.opening_call call,a.opener_player_id pid,a.opener_rel_pos pos,a.vul_rel vul,COUNT(*) n FROM auction a ${joins} WHERE ${conds.join(" AND ")} GROUP BY call,pid,pos,vul`,params);
   const grid={};
   rows.forEach(r=>{const g=grid[r.call]||(grid[r.call]={call:r.call,total:0,by_pos:{},by_vul:{},by_player:{}});
-    g.total+=r.n;g.by_pos[r.pos]=(g.by_pos[r.pos]||0)+r.n;if(r.vul)g.by_vul[r.vul]=(g.by_vul[r.vul]||0)+r.n;g.by_player[r.pid]=(g.by_player[r.pid]||0)+r.n;});
+    g.total+=r.n;g.by_pos[r.pos]=(g.by_pos[r.pos]||0)+r.n;if(r.vul)g.by_vul[r.vul]=(g.by_vul[r.vul]||0)+r.n;const pid=r.pid||0;g.by_player[pid]=(g.by_player[pid]||0)+r.n;});
   return Object.values(grid).sort((a,b)=>b.total-a.total);
 }
 function gridTable(grid,names,memberIds,exploreFor){
   return `<div class="branches"><table class="facet grid"><thead><tr><th>opening</th><th>total</th>`+
-    memberIds.map(id=>`<th>${esc((names[id]||"").split(" ")[0])}</th>`).join("")+
+    memberIds.map(id=>id?`<th>${esc((names[id]||"").split(" ")[0])}</th>`:`<th><span title="pairs events: which member opened isn't published">pair</span></th>`).join("")+
     POS.map(p=>`<th>${p}${ORD[p]}</th>`).join("")+VULS.map(v=>`<th>${v}</th>`).join("")+`</tr></thead><tbody>`+
     grid.map(g=>`<tr><td class="bcall"><a href="${exploreFor(g.call)}">${callHtml(g.call)}</a></td><td class="bcount">${g.total}</td>`+
       memberIds.map(id=>`<td>${g.by_player[id]||0}</td>`).join("")+
@@ -336,10 +368,10 @@ function gridTable(grid,names,memberIds,exploreFor){
 }
 function viewPair(f){
   setNav("pair");
-  const TS=tournaments();
+  const TS=tournOpts();
   const form=`<h2>Pair dashboard</h2><form class="filters mini" onsubmit="return submitForm(event,'pair')"><div class="grid3">
     ${inp("p1","Player 1",f.p1,"KALITA")}${inp("p2","Player 2",f.p2,"KLUKOWSKI")}
-    ${optSel("tournament","Tournament",TS.map(t=>[t.slug,t.name]),f.tournament)}
+    ${optSel("tournament","Tournament",TS,f.tournament)}
   </div><div class="actions"><button type="submit">Show</button></div></form>`;
   const h1=resolveOne(f.p1||""), h2=resolveOne(f.p2||"");
   if(!(h1&&h2)){app.innerHTML=form+`<p class="hint">Enter both players' surnames.</p>`;return;}
@@ -348,18 +380,20 @@ function viewPair(f){
   const names={[h1.id]:h1.nm,[h2.id]:h2.nm};
   const base={player:f.p1,partner:f.p2,pair_side:"opening"}; if(f.tournament)base.tournament=f.tournament;
   const exploreFor=c=>link("explore",{...base,seq:c});
-  const events=q(`SELECT DISTINCT t.slug,t.name FROM seating se JOIN match m ON m.id=se.match_id JOIN round r ON r.id=m.round_id JOIN tournament t ON t.id=r.tournament_id WHERE se.player_id=? ORDER BY t.id`,[h1.id]);
+  const events=q(`SELECT DISTINCT t.slug,t.name,${X.kind} kind FROM seating se JOIN match m ON m.id=se.match_id JOIN round r ON r.id=m.round_id JOIN tournament t ON t.id=r.tournament_id WHERE se.player_id=? ORDER BY t.id`,[h1.id]);
   let body=`<h3>${esc(h1.nm)} &nbsp;–&nbsp; ${esc(h2.nm)}</h3>
     <p class="cmeta">Opening bids by their side${f.tournament?" at "+f.tournament:""}. Each opening links into the Sequence Explorer. · <a href="${link('search',base)}">see all boards their side opened →</a></p>`;
-  body+= grid.length?gridTable(grid,names,[h1.id,h2.id],exploreFor):`<p class="hint">No openings found.</p>`;
+  const mids=[h1.id,h2.id]; if(grid.some(g=>g.by_player[0])) mids.push(0);
+  body+= grid.length?gridTable(grid,names,mids,exploreFor):`<p class="hint">No openings found.</p>`;
+  if(events.some(e=>e.kind==="pairs")) body+=`<p class="note">Pairs events count at pair level only — seats within a pair aren't published; those openings appear in the <b>pair</b> column.</p>`;
   body+=`<p class="cmeta">Events: ${events.map(e=>`<a href="${link('pair',{p1:f.p1,p2:f.p2,tournament:e.slug})}">${esc(e.name)}</a>`).join(" · ")}</p>`;
   app.innerHTML=form+body;
 }
 function viewPlayer(f){
   setNav("player");
-  const TS=tournaments();
+  const TS=tournOpts();
   const form=`<h2>Player dashboard</h2><form class="filters mini" onsubmit="return submitForm(event,'player')"><div class="grid3">
-    ${inp("name","Player",f.name,"KLUKOWSKI")}${optSel("tournament","Tournament",TS.map(t=>[t.slug,t.name]),f.tournament)}
+    ${inp("name","Player",f.name,"KLUKOWSKI")}${optSel("tournament","Tournament",TS,f.tournament)}
   </div><div class="actions"><button type="submit">Show</button></div></form>`;
   const hit=resolveOne(f.name||"");
   if(!hit){app.innerHTML=form+`<p class="hint">Enter a surname.</p>`;return;}
@@ -370,32 +404,37 @@ function viewPlayer(f){
      FROM instance_side s JOIN board_instance bi ON bi.id=s.board_instance_id JOIN match m ON m.id=bi.match_id JOIN round r ON r.id=m.round_id JOIN tournament t ON t.id=r.tournament_id
      WHERE (s.player_lo=? OR s.player_hi=?)${f.tournament?" AND t.slug=?":""} GROUP BY partner ORDER BY n DESC`,
      f.tournament?[hit.id,hit.id,hit.id,f.tournament]:[hit.id,hit.id,hit.id]);
-  const events=q(`SELECT DISTINCT t.slug,t.name FROM seating se JOIN match m ON m.id=se.match_id JOIN round r ON r.id=m.round_id JOIN tournament t ON t.id=r.tournament_id WHERE se.player_id=? ORDER BY t.id`,[hit.id]);
+  const events=q(`SELECT DISTINCT t.slug,t.name,${X.kind} kind FROM seating se JOIN match m ON m.id=se.match_id JOIN round r ON r.id=m.round_id JOIN tournament t ON t.id=r.tournament_id WHERE se.player_id=? ORDER BY t.id`,[hit.id]);
   let body=`<h3>${esc(hit.nm)}</h3><p class="cmeta"><a href="${link('search',base)}">all boards played →</a> · <a href="${link('search',{...base,player_role:'opener'})}">boards as opener →</a></p>
     <h4>Openings (as opener${f.tournament?", "+f.tournament:""})</h4>`;
   body+= grid.length?gridTable(grid,{[hit.id]:hit.nm},[hit.id],exploreFor):`<p class="hint">No openings recorded.</p>`;
   body+=`<h4>Partners</h4><p class="cmeta">`+ (partners.length?partners.map(p=>{const nm=one("SELECT canonical_name c FROM player WHERE id=?",[p.partner]).c;
      return `<a href="${link('pair',{p1:hit.nm,p2:nm,...(f.tournament?{tournament:f.tournament}:{})})}">${esc(nm)}</a> <span class="dim">(${p.n})</span>`;}).join(" · "):"—")+`</p>`;
+  if(events.some(e=>e.kind==="pairs")) body+=`<p class="note">Pairs events count at pair level only — seats within a pair aren't published, so they're not in this player's opener counts. See the pair dashboard via Partners.</p>`;
   body+=`<p class="cmeta">Events: ${events.map(e=>`<a href="${link('player',{name:hit.nm,tournament:e.slug})}">${esc(e.name)}</a>`).join(" · ")}</p>`;
   app.innerHTML=form+body;
 }
 
 // ---- deal traveller --------------------------------------------------------
 function viewDeal(id){
-  const d=one(`SELECT d.*,r.number round_no,t.slug tslug,t.name tname,t.asp_base_url FROM deal d JOIN round r ON r.id=d.round_id JOIN tournament t ON t.id=r.tournament_id WHERE d.id=?`,[+id]);
+  const d=one(`SELECT d.*,r.number round_no,r.label round_label,${X.kind} kind,t.slug tslug,t.name tname,t.asp_base_url FROM deal d JOIN round r ON r.id=d.round_id JOIN tournament t ON t.id=r.tournament_id WHERE d.id=?`,[+id]);
   if(!d){app.innerHTML="<p>Deal not found.</p>";return;}
   const {f}=parseHash(); const oc=f.opening_call||"";
-  const insts=q(`SELECT bi.id bi_id,bi.room,bi.contract,bi.declarer,bi.tricks,bi.score_ns,bi.score_ew,m.ext_match_id,m.id match_id,
+  const isPairs=d.kind==="pairs";
+  const roundTitle=(d.kind==="ko"||isPairs)&&d.round_label?d.round_label:`Round ${d.round_no}`;
+  const insts=q(`SELECT ${X.mp_ns} mp_ns,${X.mp_ew} mp_ew,${X.pct_ns} pct_ns,${X.pct_ew} pct_ew,${X.table_label} table_label,
+     ${X.seats_known} seats_known,a.board_instance_id IS NOT NULL has_auction,bi.id bi_id,bi.room,bi.contract,bi.declarer,bi.tricks,bi.score_ns,bi.score_ew,m.ext_match_id,m.id match_id,
      ht.name home_team,vt.name visiting_team,a.calls,a.opening_call,a.opener_seat,a.opener_rel_pos,r.number round_no
      FROM board_instance bi JOIN match m ON m.id=bi.match_id JOIN round r ON r.id=m.round_id
      LEFT JOIN auction a ON a.board_instance_id=bi.id LEFT JOIN team ht ON ht.id=m.home_team_id LEFT JOIN team vt ON vt.id=m.visiting_team_id
      WHERE bi.deal_id=?${oc?" AND a.opening_call=?":""} ORDER BY m.ext_match_id,bi.room`, oc?[+id,oc]:[+id]);
+  if(insts.some(r=>r.table_label)) insts.sort(cmpTable);
   const ocs=q(`SELECT DISTINCT a.opening_call oc FROM auction a JOIN board_instance bi ON bi.id=a.board_instance_id WHERE bi.deal_id=? AND a.opening_call IS NOT NULL ORDER BY length(a.opening_call),a.opening_call`,[+id]).map(r=>r.oc);
   const srcUrl=d.source_url;
   let html=`<a class="back" href="javascript:history.back()">← back</a>
-    <div class="dealhead"><h2>${esc(d.tname)} · Round ${d.round_no} · Board ${d.board_no}</h2>
+    <div class="dealhead"><h2>${esc(d.tname)} · ${esc(roundTitle)} · Board ${d.board_no}</h2>
     <div class="cmeta">Dealer ${d.dealer} · ${d.vul} vulnerable</div>
-    <a class="src" href="${esc(srcUrl)}" target="_blank" rel="noopener">official deal page (BoardAcross) ↗</a></div>
+    <a class="src" href="${esc(srcUrl)}" target="_blank" rel="noopener">official deal page ↗</a></div>
     <div class="diagram"><div class="pos n">N ${handHtml(d.hand_n)}</div>
       <div class="midrow"><div class="pos w">W ${handHtml(d.hand_w)}</div><div class="compass">${d.board_no}</div><div class="pos e">E ${handHtml(d.hand_e)}</div></div>
       <div class="pos s">S ${handHtml(d.hand_s)}</div></div>
@@ -408,10 +447,17 @@ function viewDeal(id){
     const players=Object.fromEntries(q("SELECT s.seat,p.canonical_name nm FROM seating s JOIN player p ON p.id=s.player_id WHERE s.match_id=? AND s.room=?",[r.match_id,r.room]).map(x=>[x.seat,x.nm]));
     const calls=r.calls?r.calls.split(" "):[];
     const grid=auctionGrid(calls,d.dealer,r.opener_rel_pos);
-    html+=`<div class="traveller"><div class="thead"><span class="teams">${esc(r.home_team)} vs ${esc(r.visiting_team)}</span><span class="room">${r.room}</span>
-      <span class="res">${esc(r.contract)}${r.declarer?` by ${r.declarer}`:""}${r.tricks!=null?` · ${r.tricks} tr`:""}${r.score_ns!=null?` · NS ${r.score_ns}`:""}${r.score_ew!=null?` · EW ${r.score_ew}`:""}</span></div>
-      <table class="auc"><thead><tr>${SEATS_WNES.map(s=>`<th>${s}<br><small>${esc(players[s]||"")}</small></th>`).join("")}</tr></thead><tbody>`+
-      grid.map(line=>`<tr>${line.map(([c,o])=>`<td class="${o?"open":""}">${c}</td>`).join("")}</tr>`).join("")+`</tbody></table></div>`;
+    const pairLink=(a,b,nm)=>players[a]&&players[b]?`<a href="${link('pair',{p1:players[a],p2:players[b]})}">${esc(nm)}</a>`:esc(nm);
+    const head=isPairs
+      ?`<span class="room tbl">${esc(r.table_label||"table ?")}</span><span class="teams"><span class="dir">NS</span> ${pairLink("N","S",r.home_team)} vs <span class="dir">EW</span> ${pairLink("E","W",r.visiting_team)}</span>`
+      :`<span class="teams">${esc(r.home_team)} vs ${esc(r.visiting_team)}</span><span class="room">${r.room}</span>`;
+    const mp=(r.pct_ns!=null||r.pct_ew!=null||r.mp_ns!=null)
+      ?`<div class="mprow"><span>NS <b>${pct(r.pct_ns)}</b> <span class="dim">${num(r.mp_ns)} mp</span></span><span>EW <b>${pct(r.pct_ew)}</b> <span class="dim">${num(r.mp_ew)} mp</span></span></div>`:"";
+    html+=`<div class="traveller"><div class="thead">${head}
+      <span class="res">${esc(r.contract)}${r.declarer?` by ${r.declarer}`:""}${r.tricks!=null?` · ${r.tricks} tr`:""}${r.score_ns!=null?` · NS ${r.score_ns}`:""}${r.score_ew!=null?` · EW ${r.score_ew}`:""}</span></div>${mp}`+
+      (!r.has_auction?`<p class="nobid">no bidding recorded</p>`:
+      `<table class="auc"><thead><tr>${SEATS_WNES.map(s=>`<th>${s}${r.seats_known?`<br><small>${esc(players[s]||"")}</small>`:""}</th>`).join("")}</tr></thead><tbody>`+
+      grid.map(line=>`<tr>${line.map(([c,o])=>`<td class="${o?"open":""}">${c}</td>`).join("")}</tr>`).join("")+`</tbody></table>`)+`</div>`;
   });
   html+=`</div>`;
   setNav(null);
@@ -445,6 +491,7 @@ window.addEventListener("hashchange",route);
     const SQL=await initSqlJs({wasmBinary:b64ToBytes(WASM_B64).buffer});
     const dbBytes=await gunzip(b64ToBytes(DB_GZ_B64));
     DB=new SQL.Database(dbBytes);
+    detectColumns();
     const s=one("SELECT (SELECT COUNT(*) FROM tournament) t,(SELECT COUNT(*) FROM auction) a,(SELECT COUNT(*) FROM player) p");
     document.getElementById("stat").textContent=`${s.t} events · ${s.a.toLocaleString()} auctions`;
     document.getElementById("splash").style.display="none";

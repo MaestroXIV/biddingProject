@@ -83,11 +83,12 @@ def derive(conn: sqlite3.Connection) -> dict:
 
     # --- auction derived columns -------------------------------------------
     rows = conn.execute(
-        "SELECT a.board_instance_id, a.calls, d.dealer, d.vul, bi.match_id, bi.room "
+        "SELECT a.board_instance_id, a.calls, d.dealer, d.vul, bi.match_id, bi.room, "
+        "COALESCE(m.seats_known, 1) "
         "FROM auction a JOIN board_instance bi ON bi.id=a.board_instance_id "
-        "JOIN deal d ON d.id=bi.deal_id"
+        "JOIN deal d ON d.id=bi.deal_id LEFT JOIN match m ON m.id=bi.match_id"
     ).fetchall()
-    for bi_id, calls_str, dealer, vul, match_id, room in rows:
+    for bi_id, calls_str, dealer, vul, match_id, room, seats_known in rows:
         calls = calls_str.split() if calls_str else []
         opener_idx = next((i for i, c in enumerate(calls) if is_bid(c)), None)
         if opener_idx is None:
@@ -103,6 +104,10 @@ def derive(conn: sqlite3.Connection) -> dict:
             "SELECT player_id FROM seating WHERE match_id=? AND room=? AND seat=?",
             (match_id, room, opener_seat)).fetchone()
         opener_pid = opener_pid[0] if opener_pid else None
+        if not seats_known:
+            # pairs: we know the pair, not who sat N vs S -- a player-level
+            # attribution would be a guess (PAIRS_KO.md §2)
+            opener_pid = None
         from_opener, unc, competitive = _canonical(
             calls, dealer, opener_idx, opening_side)
         cur.execute(

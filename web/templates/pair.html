@@ -9,7 +9,7 @@
     <label>Player 2 <input name="p2" value="{{ pair.n2_in if pair else p2 }}" placeholder="KLUKOWSKI"></label>
     <label>Tournament
       <select name="tournament"><option value="">all</option>
-        {% for t in tournaments %}<option value="{{ t['slug'] }}" {{ 'selected' if tournament==t['slug'] }}>{{ t['name'] }}</option>{% endfor %}
+        {% for t in tournaments %}<option value="{{ t['slug'] }}" {{ 'selected' if tournament==t['slug'] }}>{{ tlabel(t) }}</option>{% endfor %}
       </select>
     </label>
   </div>
@@ -31,6 +31,8 @@
 {% else %}
   <p class="hint">No openings found for this pair{{ ' at ' ~ tournament if tournament }}.</p>
 {% endif %}
+
+{% if has_pairs %}<p class="note">Pairs events count at pair level only — seats within a pair aren't published; those openings appear in the <b>pair</b> column.</p>{% endif %}
 
 <p class="cmeta">Events: {% for e in events %}<a href="/pair?p1={{ pair.n1_in }}&p2={{ pair.n2_in }}&tournament={{ e['slug'] }}">{{ e['name'] }}</a>{{ '' if loop.last else ' · ' }}{% endfor %}</p>
 {% endif %}
