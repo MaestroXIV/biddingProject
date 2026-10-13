@@ -145,8 +145,11 @@ class _Writer:
         )
         tid = self.one("SELECT id FROM tournament WHERE site_id=? AND tourn_code=?",
                        (site_id, t.tournid))
-        cur.execute("UPDATE tournament SET kind=? WHERE id=? AND "
-                    "(kind IS NULL OR kind<>?)", (t.kind, tid, t.kind))
+        # the registry is the source of truth for display fields: a renamed or
+        # re-kinded event updates on the next store
+        cur.execute("UPDATE tournament SET kind=?, name=?, series=? WHERE id=? AND "
+                    "(kind IS NOT ? OR name IS NOT ? OR series IS NOT ?)",
+                    (t.kind, t.name, t.series, tid, t.kind, t.name, t.series))
         return tid
 
     def round(self, number: int, label: str | None = None,
