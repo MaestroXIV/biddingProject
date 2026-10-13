@@ -327,7 +327,7 @@ class Instance:
     tricks: int | None
     score_ns: int | None
     score_ew: int | None
-    auction: Auction
+    auction: Auction | None  # None = no bidding recorded (cards layout only)
 
 
 @dataclass
@@ -336,6 +336,13 @@ class BoardDetails:
     n_tooltips: int
     auctions: list[Auction]
     instances: list[Instance]
+    # Filled by the 2026 cards layout (BoardDetails + BoardDetailsKO); the
+    # classic layout leaves them at their defaults.
+    home_team: str = ""
+    visiting_team: str = ""
+    home_team_id: int | None = None      # TeamDetails qteamid; None on KO pages
+    visiting_team_id: int | None = None
+    segment: int | None = None           # from the board links' qboard (see parse_qboard)
 
 
 def parse_seating(tree: HTMLParser) -> Seating:
@@ -429,3 +436,95 @@ def parse_boarddetails(raw: bytes | str) -> BoardDetails:
         ))
     return BoardDetails(seating=seating, n_tooltips=len(tips),
                         auctions=auctions, instances=instances)
+
+
+# =============================================================================
+# 2026 "cards" layout (Katowice 2026 and later) + pairs + knockout pages.
+# Contract written by the architect (PAIRS_KO.md); implementations below.
+# =============================================================================
+
+def page_layout(raw: bytes | str) -> str:
+    """'cards' for the 2026 redesign (div.board-card / div.deal-card / div.match
+    rows), else 'classic'. parse_roundteams / parse_handsacross /
+    parse_boarddetails dispatch on this automatically."""
+    raise NotImplementedError
+
+
+def parse_qboard(href: str) -> tuple[int, int | None, str | None, int | None]:
+    """'qboard=001.01..2642' -> (1, 1, None, 2642)  (teams: board.round..tournid)
+       'qboard=001.02.16.2653' -> (1, 2, '16', 2653) (KO: board.segment.phase.tournid)
+       'qboard=7' -> (7, None, None, None)           (pairs)"""
+    raise NotImplementedError
+
+
+# --- pairs -------------------------------------------------------------------
+
+@dataclass
+class PairsTable:
+    """One table result on a BoardAcrossPairs traveller (one div.board-card)."""
+    section: str              # 'Sec 3' text of .dirchip ('' if absent)
+    table_no: int | None      # from .tblno 'Tbl 7'
+    ns_pair_id: int           # qpairid of the .pr-cell.ns link
+    ew_pair_id: int
+    ns_players: list[str]     # .nfull names in page order, e.g. ['ANKIERSZTEJN Andrzej', 'BARYLA Zdzislaw']
+    ew_players: list[str]
+    mp_ns: float | None       # .px-cell.ns .mpv
+    mp_ew: float | None
+    pct_ns: float | None      # .px-cell.ns .pcv '91.67%' -> 91.67 ; blank -> None
+    pct_ew: float | None
+    contract: str             # normalized like classic: '6D', '3Hx', 'Pass', 'Adj', '' (unknown)
+    declarer: str             # 'N'/'E'/'S'/'W' or ''
+    lead: str                 # 'HA' style, '' if none
+    tricks: int | None
+    score_ns: int | None      # same convention as classic: positive score on the
+    score_ew: int | None      #   side that scored it, other None; Pass -> (0, 0)
+    auction: Auction | None   # None when no .bidpanel, or contract == 'Adj'
+
+
+@dataclass
+class PairsBoard:
+    deal: Deal
+    tables: list[PairsTable]
+    board_hrefs: list[str]    # every board of the session from the .brd-sel options, in order
+
+
+def parse_boardacross_pairs(raw: bytes | str) -> PairsBoard:
+    """BoardAcrossPairs.asp: header (Board N, dealer, vul) + diagram + every table.
+    An out-of-range board returns a ~770-byte page with no .board-card and no
+    .bh-title: raise EmptyPage for that."""
+    raise NotImplementedError
+
+
+@dataclass
+class Phase:
+    code: str        # pairs: the qgroupno as str ('2'); KO: the qphase ('16', 'QF')
+    name: str        # 'Qualifier', 'SemiFinal A' / 'Mixed Teams - Phase of 16'
+    last_session: int | None  # pairs: qroundno in the option (latest session); KO: None
+
+
+def parse_pairs_phases(raw: bytes | str, tournid: int) -> list[Phase]:
+    """TotalPairs.asp phase dropdown: options whose href has this qtournid and a
+    qgroupno. Returned in PLAY order (Qualifier first, Final last) -- the page
+    lists them most-significant first, so reverse it."""
+    raise NotImplementedError
+
+
+def parse_pairs_event_names(raw: bytes | str) -> dict[int, str]:
+    """TotalPairs.asp event dropdown -> {tournid: 'Senior Pairs', ...}."""
+    raise NotImplementedError
+
+
+def parse_ko_phases(raw: bytes | str, tournid: int) -> list[Phase]:
+    """Knockoutphase.asp dropdown: options for this qtournid, page order
+    (earliest phase first, e.g. 64, 32, 16, QF, SF, FF)."""
+    raise NotImplementedError
+
+
+def parse_ko_match_ids(raw: bytes | str) -> list[int]:
+    """Knockoutphase.asp: distinct BoardDetailsKO qmatchid values, page order.
+    One id per (match, segment)."""
+    raise NotImplementedError
+
+
+class EmptyPage(ValueError):
+    """The site returned its empty shell (no data for these parameters)."""

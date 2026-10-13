@@ -22,6 +22,7 @@ class Tournament:
     name: str
     year: int
     series: str = ""
+    kind: str = "teams"  # 'teams' (RoundTeams) | 'ko' (Knockoutphase) | 'pairs' (TotalPairs)
 
 
 _BUILTIN = {

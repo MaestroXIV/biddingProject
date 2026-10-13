@@ -23,11 +23,14 @@ CREATE TABLE IF NOT EXISTS player_alias (
 
 CREATE TABLE IF NOT EXISTS round (
     id INTEGER PRIMARY KEY, tournament_id INT, number INT,
-    label TEXT, UNIQUE(tournament_id, number));
+    label TEXT,
+    stage TEXT,                         -- KO phase / pairs phase name; NULL for teams
+    UNIQUE(tournament_id, number));
 
 CREATE TABLE IF NOT EXISTS match (
     id INTEGER PRIMARY KEY, round_id INT, ext_match_id INT,
     home_team_id INT, visiting_team_id INT,
+    seats_known INT DEFAULT 1,          -- 0 for pairs: N/S order inside a pair unknown
     UNIQUE(round_id, ext_match_id));
 
 CREATE TABLE IF NOT EXISTS seating (
@@ -45,6 +48,9 @@ CREATE TABLE IF NOT EXISTS board_instance (
     id INTEGER PRIMARY KEY, deal_id INT, match_id INT,
     room TEXT, contract TEXT, declarer TEXT, lead TEXT,
     tricks INT, score_ns INT, score_ew INT,
+    mp_ns REAL, mp_ew REAL,             -- pairs: matchpoints on the board
+    pct_ns REAL, pct_ew REAL,           -- pairs: board percentage
+    table_label TEXT,                   -- pairs: 'Sec 3 Tbl 7'
     UNIQUE(deal_id, match_id, room));
 
 CREATE TABLE IF NOT EXISTS auction (

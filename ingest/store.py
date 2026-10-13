@@ -17,10 +17,31 @@ DB_PATH = REPO_ROOT / "data" / "boardbase.db"
 SCHEMA = REPO_ROOT / "db" / "schema.sql"
 
 
+# Columns added after v1 (PAIRS_KO.md). CREATE TABLE IF NOT EXISTS never alters
+# an existing DB, so add any that are missing -- old DBs upgrade in place.
+_MIGRATIONS = {
+    "tournament": [("kind", "TEXT DEFAULT 'teams'")],
+    "round": [("stage", "TEXT")],
+    "match": [("seats_known", "INT DEFAULT 1")],
+    "board_instance": [("mp_ns", "REAL"), ("mp_ew", "REAL"), ("pct_ns", "REAL"),
+                       ("pct_ew", "REAL"), ("table_label", "TEXT")],
+}
+
+
+def migrate(conn: sqlite3.Connection) -> None:
+    for table, cols in _MIGRATIONS.items():
+        have = {r[1] for r in conn.execute(f"PRAGMA table_info({table})")}
+        for name, decl in cols:
+            if name not in have:
+                conn.execute(f"ALTER TABLE {table} ADD COLUMN {name} {decl}")
+    conn.commit()
+
+
 def connect(db_path: Path = DB_PATH) -> sqlite3.Connection:
     conn = sqlite3.connect(db_path)
     conn.execute("PRAGMA foreign_keys = ON")
     conn.executescript(SCHEMA.read_text())
+    migrate(conn)
     return conn
 
 
